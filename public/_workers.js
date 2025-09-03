@@ -29,7 +29,13 @@ export default {
           },
         });
 
-        return new Response(response.body, {
+        // 🔹 DEBUG LOGGING
+        const text = await response.text();
+        console.log(">>> Proxy Target:", targetUrl);
+        console.log(">>> Proxy Response (first 300 chars):", text.slice(0, 300));
+
+        // 🔹 Return the actual response to the browser
+        return new Response(text, {
           status: response.status,
           headers: {
             "Content-Type": response.headers.get("Content-Type") || "application/json",
