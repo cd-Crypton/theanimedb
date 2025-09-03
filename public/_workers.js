@@ -1,4 +1,4 @@
-const CONSUMET_API_BASE = 'https://api.consumet.org';
+const CONSUMET_API_BASE = 'https://test-anime-woad.vercel.app';
 
 export default {
   async fetch(request, env, ctx) {
