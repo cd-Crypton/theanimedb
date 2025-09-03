@@ -364,9 +364,8 @@ async function handleServerSelection(episodeId, serverName) {
             const animeSlug = parts[0];
             const episodeNumber = state.animeEpisodes.find(ep => ep.episodeId === episodeId).episodeNo;
             
-            const zoroUrl = `${ZORO_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}?server=vidcloud`;
-            
-            const zoroRes = await fetch(zoroUrl);
+            // Unproxied API call
+            const zoroRes = await fetch(`${ZORO_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}?server=vidcloud`);
             const zoroData = await zoroRes.json();
             
             if (!zoroData.sources || zoroData.sources.length === 0) {
