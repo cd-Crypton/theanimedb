@@ -15,6 +15,7 @@ let state = {
     videoSrc: null,
     isLoading: true,
     error: null,
+    timeoutId: null, // New state variable to hold the timeout timer
 };
 
 // --- API Base URL pointing to Worker proxy ---
@@ -28,11 +29,18 @@ const Spinner = () => `
   <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
 </div>`;
 
-const ErrorDisplay = (message) => `
-<div class="text-center p-4 bg-red-900/50 text-red-300 rounded-lg max-w-2xl mx-auto my-4">
-  <p class="font-bold">An Error Occurred</p>
-  <p>${message}</p>
-</div>`;
+const ErrorDisplay = (message, showBackButton = false) => {
+    let backButton = '';
+    if (showBackButton) {
+        backButton = `<button onclick="handleGoHome()" class="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">Go Back</button>`;
+    }
+    return `
+    <div class="text-center p-4 bg-red-900/50 text-red-300 rounded-lg max-w-2xl mx-auto my-4">
+      <p class="font-bold">An Error Occurred</p>
+      <p>${message}</p>
+      ${backButton}
+    </div>`;
+};
 
 const SearchBar = () => `
 <form id="search-form" class="w-full max-w-2xl mx-auto mb-8">
@@ -209,7 +217,7 @@ const renderDetails = () => {
         
         <div class="mt-8">
             ${videoPlayerHtml}
-            ${state.error ? ErrorDisplay(state.error) : ''}
+            ${state.error ? ErrorDisplay(state.error, state.isLoading === false) : ''}
             <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
             ${episodeListHtml}
         </div>
@@ -222,6 +230,12 @@ const renderDetails = () => {
 // --- App Logic ---
 const setState = (newState) => {
     state = { ...state, ...newState };
+    // Clear existing timeout if it's active
+    if (state.timeoutId) {
+        clearTimeout(state.timeoutId);
+        state.timeoutId = null;
+    }
+
     if (state.view === 'home') {
         renderHome();
     } else if (state.view === 'details') {
@@ -229,37 +243,54 @@ const setState = (newState) => {
     }
 };
 
+const startTimeout = (message) => {
+    // Set a new timeout and store its ID
+    const timeoutId = setTimeout(() => {
+        setState({
+            isLoading: false,
+            error: `Request timed out. ${message || ''}`.trim(),
+            timeoutId: null,
+        });
+    }, 10000); // 10 seconds
+    state.timeoutId = timeoutId;
+};
+
 async function fetchHomeData() {
-    setState({ isLoading:true, error:null, view:'home' });
+    setState({ isLoading: true, error: null, view: 'home' });
+    startTimeout("Could not load home anime data.");
     try {
         const res = await fetch(`${API_BASE}`);
         const data = await res.json();
         const trending = data.trendingAnimes || [];
         const recent = data.latestEpisodes || [];
         setState({ homeData: { trending, recent } });
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         setState({ error: 'Could not load home anime data.' });
     } finally {
-        setState({ isLoading:false });
+        setState({ isLoading: false });
     }
 }
 
-async function fetchSearchResults(page=1) {
+async function fetchSearchResults(page = 1) {
     if (!state.lastSearchQuery) return;
-    setState({ isLoading:true, error:null, currentPage:page, view:'home' });
+    setState({ isLoading: true, error: null, currentPage: page, view: 'home' });
+    startTimeout("Failed to fetch search results.");
     try {
         const res = await fetch(`${API_BASE}/search?keyword=${state.lastSearchQuery}&page=${page}`);
         const data = await res.json();
-        setState({ searchResults: { results: data.animes }, isLoading:false });
-    } catch(err){
+        setState({ searchResults: { results: data.animes }, isLoading: false });
+    } catch (err) {
         console.error(err);
-        setState({ error:'Failed to fetch search results.', isLoading:false });
+        setState({ error: 'Failed to fetch search results.', isLoading: false });
+    } finally {
+        setState({ isLoading: false });
     }
 }
 
 async function fetchAnimeDetails(animeId) {
-    setState({ isLoading:true, error:null, view:'details', animeDetails: null, videoSrc: null, availableServers: [], selectedEpisodeId: null });
+    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, availableServers: [], selectedEpisodeId: null });
+    startTimeout("Failed to fetch anime details.");
     try {
         const [detailsRes, episodesRes] = await Promise.all([
             fetch(`${API_BASE}/anime/${animeId}`),
@@ -269,10 +300,10 @@ async function fetchAnimeDetails(animeId) {
         const detailsData = await detailsRes.json();
         const episodesData = await episodesRes.json();
 
-        setState({ 
-            animeDetails: detailsData, 
+        setState({
+            animeDetails: detailsData,
             animeEpisodes: episodesData.episodes,
-            isLoading: false 
+            isLoading: false
         });
     } catch (err) {
         console.error(err);
@@ -282,6 +313,7 @@ async function fetchAnimeDetails(animeId) {
 
 async function handleEpisodeSelection(episodeId) {
     setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, availableServers: [], error: null });
+    startTimeout("Failed to load servers for this episode.");
     try {
         const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
         const serversData = await serversRes.json();
@@ -302,6 +334,7 @@ async function handleEpisodeSelection(episodeId) {
 
 async function handleServerSelection(episodeId, serverName) {
     setState({ isLoading: true, videoSrc: null, error: null });
+    startTimeout("Failed to load streaming source from AniWatch.");
     try {
         const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
         const serversData = await serversRes.json();
