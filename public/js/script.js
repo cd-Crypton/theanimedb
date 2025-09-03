@@ -14,11 +14,9 @@ let state = {
     error: null,
 };
 
-// --- API Base URLs (pointing to the worker proxy or direct URL) ---
-// Note: Using direct URLs for now as per previous context.
-// Change these back to '/api/...' if using a Cloudflare Worker.
-const API_BASE_URL_GOGO = 'https://api.consumet.org/anime/gogoanime';
-const API_BASE_URL_PAHE = 'https://api.consumet.org/anime/animepahe';
+// --- API Base URLs (pointing to the worker proxy) ---
+const API_BASE_URL_GOGO = '/api/anime/gogoanime';
+const API_BASE_URL_PAHE = '/api/anime/animepahe';
 
 // --- Render Functions (generating HTML strings) ---
 
