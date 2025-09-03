@@ -53,7 +53,6 @@ const SearchBar = () => `
     </form>`;
 
 const AnimeCard = (anime) => {
-    // Escape single quotes in titles to prevent breaking the onclick attribute
     const animeTitle = (anime.title?.romaji || anime.title).replace(/'/g, "\\'");
     const onclickAction = `handleSelectAnime('${anime.id}')`;
 
@@ -81,7 +80,6 @@ const AnimeCard = (anime) => {
 const renderPagination = () => {
     if (!state.searchResults) return '';
     
-    // Gogoanime provides a hasNextPage flag, which is more reliable.
     const hasNextPage = state.searchResults.hasNextPage;
 
     return `
@@ -104,34 +102,63 @@ const renderPagination = () => {
 };
 
 const renderHome = () => {
-    let content = '';
-    if (state.isLoading && !state.searchResults && state.homeData.trending.length === 0) {
-        content = Spinner();
-    } else if (state.searchResults) {
-        content = `
-            <section>
-                <h2 class="text-2xl font-bold text-white mb-4">Search Results</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    ${state.searchResults.results.map(anime => AnimeCard(anime)).join('')}
-                </div>
-                ${renderPagination()}
-            </section>`;
+    let trendingContent, recentContent;
+
+    // Logic for what to display in the Trending and Recent sections
+    if (state.isLoading && state.homeData.trending.length === 0) {
+        trendingContent = Spinner();
+        recentContent = `<div class="col-span-full">${Spinner()}</div>`; // Show a spinner in the recent section too
+    } else if (state.error && !state.searchResults) {
+        // Show a single, clear error message for the homepage data
+        trendingContent = `<div class="col-span-full">${ErrorDisplay(state.error)}</div>`;
+        recentContent = '';
     } else {
-        content = `
-            <section class="mb-10">
-                <h2 class="text-2xl font-bold text-white mb-4">Trending Now</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    ${state.homeData.trending.map(anime => AnimeCard(anime)).join('')}
-                </div>
-            </section>
-            <section>
-                <h2 class="text-2xl font-bold text-white mb-4">Recent Episodes</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    ${state.homeData.recent.map(anime => AnimeCard(anime)).join('')}
-                </div>
-            </section>`;
+        trendingContent = state.homeData.trending.map(anime => AnimeCard(anime)).join('');
+        recentContent = state.homeData.recent.map(anime => AnimeCard(anime)).join('');
     }
-    mainContent.innerHTML = SearchBar() + (state.error ? ErrorDisplay(state.error) : '') + content;
+
+    const homePageHTML = `
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold text-white mb-4">Trending Now</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                ${trendingContent}
+            </div>
+        </section>
+        <section>
+            <h2 class="text-2xl font-bold text-white mb-4">Recent Episodes</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                ${recentContent}
+            </div>
+        </section>
+    `;
+
+    const searchResultsHTML = state.searchResults ? `
+        <section>
+            <h2 class="text-2xl font-bold text-white mb-4">Search Results</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                ${state.searchResults.results.map(anime => AnimeCard(anime)).join('')}
+            </div>
+            ${renderPagination()}
+        </section>
+    ` : '';
+    
+    let contentToDisplay;
+
+    // Show a spinner specifically for search loading
+    if (state.isLoading && state.lastSearchQuery) {
+        contentToDisplay = Spinner();
+    } 
+    // Show search results if they exist
+    else if (state.searchResults) {
+        contentToDisplay = searchResultsHTML;
+    } 
+    // Otherwise, show the homepage content
+    else {
+        contentToDisplay = homePageHTML;
+    }
+
+    // Always render the Search Bar. If there's an error related to search, display it.
+    mainContent.innerHTML = SearchBar() + (state.error && state.searchResults ? ErrorDisplay(state.error) : '') + contentToDisplay;
     document.getElementById('search-form').addEventListener('submit', handleSearchSubmit);
 };
 
@@ -262,11 +289,14 @@ async function fetchSearchResultsPage(page) {
     const query = state.lastSearchQuery;
     if (!query) return;
 
-    setState({ isLoading: true, error: null, currentPage: page });
+    setState({ isLoading: true, error: null, currentPage: page, searchResults: null });
 
     try {
         const response = await fetch(`${API_BASE_URL}/${query}?page=${page}`);
-        if (!response.ok) throw new Error(`Search failed for page ${page}. Status: ${response.status}`);
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Search failed for page ${page}. Status: ${response.status}. Body: ${errorBody}`);
+        }
         const data = await response.json();
         setState({ searchResults: data, isLoading: false });
     } catch (err) {
@@ -328,12 +358,14 @@ function handleBack() {
          selectedAnimeId: null,
          animeDetails: null,
          selectedEpisode: null,
+         lastSearchQuery: '',
+         searchResults: null,
      });
 }
 
 // --- Initial Load ---
 function init() {
-    setState({ isLoading: true });
+    setState({ isLoading: true, error: null });
 
     (async () => {
         try {
@@ -341,7 +373,12 @@ function init() {
                 fetch(`${API_BASE_URL}/top-airing`),
                 fetch(`${API_BASE_URL}/recent-episodes`),
             ]);
-            if (!trendingRes.ok || !recentRes.ok) throw new Error('Failed to fetch initial data.');
+            
+            if (!trendingRes.ok || !recentRes.ok) {
+                // Try to get more info from the response if possible
+                const errorBody = trendingRes.ok ? await recentRes.text() : await trendingRes.text();
+                throw new Error(`Failed to fetch initial data. Statuses: ${trendingRes.status}, ${recentRes.status}. Body: ${errorBody}`);
+            }
             
             const trendingData = await trendingRes.json();
             const recentData = await recentRes.json();
@@ -349,11 +386,10 @@ function init() {
             setState({ homeData: { trending: trendingData.results, recent: recentData.results }, isLoading: false });
         } catch (err) {
             console.error(err);
-            setState({ error: 'Could not load initial anime data. The API might be down.', isLoading: false });
+            setState({ error: 'Could not load initial anime data. The API might be down or blocked.', isLoading: false });
         }
     })();
 }
 
-// Run the app directly now that the script is at the end of the body
+// Run the app
 init();
-

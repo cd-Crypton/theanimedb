@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AnimeStream</title>
+    <title>TheAnimeDB</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Inter, sans-serif' font-size='24' font-weight='900' fill='%23FFFFFF'%3ETheAnime%3Ctspan fill='%233B82F6'%3EDB%3C/tspan%3E%3C/text%3E%3C/svg%3E">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Custom Tailwind Config -->
@@ -22,8 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <!-- Corrected path to the stylesheet -->
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <!-- HLS.js for video streaming -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
@@ -31,9 +32,14 @@
 
     <div id="app" class="p-4 sm:p-6 lg:p-8">
         <header class="mb-8 text-center">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-white">
-                <span class="text-blue-500">Anime</span>Stream
-            </h1>
+            <!-- New SVG Logo -->
+            <div class="max-w-md mx-auto">
+                <svg viewBox="0 0 280 50" xmlns="http://www.w3.org/2000/svg" class="w-full">
+                    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Inter, sans-serif" font-size="40" font-weight="900" fill="#FFFFFF">
+                        TheAnime<tspan fill="#3B82F6">DB</tspan>
+                    </text>
+                </svg>
+            </div>
             <p class="text-gray-400 mt-2">Powered by Consumet API (Gogoanime)</p>
             <p class="text-xs text-gray-500 mt-1">For educational purposes only.</p>
         </header>
@@ -48,6 +54,7 @@
     </div>
 
     <!-- Your application logic is now in a separate file -->
-    <script src="js/script.js"></script>
+    <script src="/js/script.js"></script>
 </body>
 </html>
+
