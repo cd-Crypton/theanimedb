@@ -20,6 +20,7 @@ let state = {
 // --- API Base URL pointing to Worker proxy ---
 const API_BASE = '/api/anime/aniwatch';
 const GOGOANIME_API_BASE = 'https://api.consumet.org/anime/gogoanime';
+const CORS_PROXY_URL = 'https://cors.consumet.stream/';
 
 // --- Render Helpers ---
 const Spinner = () => `
@@ -130,7 +131,7 @@ const renderDetails = () => {
             <h3 class="text-xl font-bold text-white mb-2">Episode List</h3>
             <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto max-h-96 custom-scrollbar">
                 ${state.animeEpisodes.map(ep => `
-                    <button onclick="handleEpisodeSelection('${ep.episodeId}', '${ep.episodeNo}')"
+                    <button onclick="handleEpisodeSelection('${ep.episodeId}')"
                             class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
                         ${ep.episodeNo}
                     </button>
@@ -323,10 +324,8 @@ async function handleServerSelection(episodeId, serverName) {
     } catch (err) {
         console.error("AniWatch API failed, attempting fallback:", err);
 
-        // Fallback to Gogoanime API
+        // Fallback to Gogoanime API with CORS proxy
         try {
-            // Note: The consumet API requires the anime slug and episode number
-            // We need to extract the anime slug and episode number from the Aniwatch episodeId
             const parts = episodeId.split("?ep=");
             const animeSlug = parts[0];
             const episodeNumber = state.animeEpisodes.find(ep => ep.episodeId === episodeId).episodeNo;
@@ -339,8 +338,9 @@ async function handleServerSelection(episodeId, serverName) {
             }
 
             const gogoanimeSourceUrl = gogoanimeSourceData.sources[0].url;
+            const proxiedUrl = `${CORS_PROXY_URL}${gogoanimeSourceUrl}`;
 
-            setState({ videoSrc: gogoanimeSourceUrl, isLoading: false, error: null });
+            setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
         } catch (gogoanimeErr) {
             console.error(gogoanimeErr);
             setState({ error: `Fallback failed to load episode: ${gogoanimeErr.message}`, isLoading: false });
