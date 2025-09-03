@@ -240,7 +240,7 @@ async function fetchSearchResults(page=1) {
 async function fetchAnimeDetails(animeId) {
     setState({ isLoading:true, error:null, view:'details', animeDetails: null, videoSrc: null });
     try {
-        const res = await fetch(`${API_BASE}/info?id=${animeId}`);
+        const res = await fetch(`${API_BASE}/anime/${animeId}`);
         const data = await res.json();
         setState({ animeDetails: data, isLoading: false });
     } catch (err) {
@@ -277,7 +277,9 @@ async function handlePlayEpisode(episodeId) {
 
     } catch (err) {
         console.error(err);
-        setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
+        setState({ error: `Failed to load episode: ${err.message}` });
+    } finally {
+        setState({ isLoading: false });
     }
 }
 
