@@ -104,12 +104,10 @@ const renderPagination = () => {
 const renderHome = () => {
     let trendingContent, recentContent;
 
-    // Logic for what to display in the Trending and Recent sections
     if (state.isLoading && state.homeData.trending.length === 0) {
         trendingContent = Spinner();
-        recentContent = `<div class="col-span-full">${Spinner()}</div>`; // Show a spinner in the recent section too
+        recentContent = Spinner(); 
     } else if (state.error && !state.searchResults) {
-        // Show a single, clear error message for the homepage data
         trendingContent = `<div class="col-span-full">${ErrorDisplay(state.error)}</div>`;
         recentContent = '';
     } else {
@@ -144,20 +142,16 @@ const renderHome = () => {
     
     let contentToDisplay;
 
-    // Show a spinner specifically for search loading
     if (state.isLoading && state.lastSearchQuery) {
         contentToDisplay = Spinner();
     } 
-    // Show search results if they exist
     else if (state.searchResults) {
         contentToDisplay = searchResultsHTML;
     } 
-    // Otherwise, show the homepage content
     else {
         contentToDisplay = homePageHTML;
     }
 
-    // Always render the Search Bar. If there's an error related to search, display it.
     mainContent.innerHTML = SearchBar() + (state.error && state.searchResults ? ErrorDisplay(state.error) : '') + contentToDisplay;
     document.getElementById('search-form').addEventListener('submit', handleSearchSubmit);
 };
@@ -369,13 +363,13 @@ function init() {
 
     (async () => {
         try {
+            // Updated to include query parameters as per the documentation
             const [trendingRes, recentRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/top-airing`),
-                fetch(`${API_BASE_URL}/recent-episodes`),
+                fetch(`${API_BASE_URL}/top-airing?page=1`),
+                fetch(`${API_BASE_URL}/recent-episodes?page=1&type=1`),
             ]);
             
             if (!trendingRes.ok || !recentRes.ok) {
-                // Try to get more info from the response if possible
                 const errorBody = trendingRes.ok ? await recentRes.text() : await trendingRes.text();
                 throw new Error(`Failed to fetch initial data. Statuses: ${trendingRes.status}, ${recentRes.status}. Body: ${errorBody}`);
             }
@@ -393,3 +387,4 @@ function init() {
 
 // Run the app
 init();
+
