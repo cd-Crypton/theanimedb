@@ -14,8 +14,8 @@ let state = {
     error: null,
 };
 
-// --- API Base URL (Now exclusively Gogoanime) ---
-const API_BASE_URL = '/api/anime/gogoanime';
+// --- API Base URL (Now exclusively Gogoanime, pointing to the public API) ---
+const API_BASE_URL = 'https://api.consumet.org/anime/gogoanime';
 
 // --- Render Functions (generating HTML strings) ---
 
@@ -53,6 +53,7 @@ const SearchBar = () => `
     </form>`;
 
 const AnimeCard = (anime) => {
+    // Escape single quotes in titles to prevent breaking the onclick attribute
     const animeTitle = (anime.title?.romaji || anime.title).replace(/'/g, "\\'");
     const onclickAction = `handleSelectAnime('${anime.id}')`;
 
@@ -80,6 +81,7 @@ const AnimeCard = (anime) => {
 const renderPagination = () => {
     if (!state.searchResults) return '';
     
+    // Gogoanime provides a hasNextPage flag, which is more reliable.
     const hasNextPage = state.searchResults.hasNextPage;
 
     return `
@@ -102,57 +104,43 @@ const renderPagination = () => {
 };
 
 const renderHome = () => {
-    let trendingContent, recentContent;
-
-    if (state.isLoading && state.homeData.trending.length === 0) {
-        trendingContent = Spinner();
-        recentContent = Spinner(); 
-    } else if (state.error && !state.searchResults) {
-        trendingContent = `<div class="col-span-full">${ErrorDisplay(state.error)}</div>`;
-        recentContent = '';
-    } else {
-        trendingContent = state.homeData.trending.map(anime => AnimeCard(anime)).join('');
-        recentContent = state.homeData.recent.map(anime => AnimeCard(anime)).join('');
-    }
-
-    const homePageHTML = `
-        <section class="mb-10">
-            <h2 class="text-2xl font-bold text-white mb-4">Trending Now</h2>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                ${trendingContent}
-            </div>
-        </section>
-        <section>
-            <h2 class="text-2xl font-bold text-white mb-4">Recent Episodes</h2>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                ${recentContent}
-            </div>
-        </section>
-    `;
-
-    const searchResultsHTML = state.searchResults ? `
-        <section>
-            <h2 class="text-2xl font-bold text-white mb-4">Search Results</h2>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                ${state.searchResults.results.map(anime => AnimeCard(anime)).join('')}
-            </div>
-            ${renderPagination()}
-        </section>
-    ` : '';
+    let content = '';
     
-    let contentToDisplay;
+    // Always render the sections, but show a spinner inside if data is loading.
+    const trendingContent = state.homeData.trending.length > 0
+        ? state.homeData.trending.map(anime => AnimeCard(anime)).join('')
+        : Spinner();
+        
+    const recentContent = state.homeData.recent.length > 0
+        ? state.homeData.recent.map(anime => AnimeCard(anime)).join('')
+        : Spinner();
 
-    if (state.isLoading && state.lastSearchQuery) {
-        contentToDisplay = Spinner();
-    } 
-    else if (state.searchResults) {
-        contentToDisplay = searchResultsHTML;
-    } 
-    else {
-        contentToDisplay = homePageHTML;
+    if (state.searchResults) {
+        content = `
+            <section>
+                <h2 class="text-2xl font-bold text-white mb-4">Search Results</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    ${state.searchResults.results.map(anime => AnimeCard(anime)).join('')}
+                </div>
+                ${renderPagination()}
+            </section>`;
+    } else {
+        content = `
+            <section class="mb-10">
+                <h2 class="text-2xl font-bold text-white mb-4">Trending Now</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    ${trendingContent}
+                </div>
+            </section>
+            <section>
+                <h2 class="text-2xl font-bold text-white mb-4">Recent Episodes</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    ${recentContent}
+                </div>
+            </section>`;
     }
-
-    mainContent.innerHTML = SearchBar() + (state.error && state.searchResults ? ErrorDisplay(state.error) : '') + contentToDisplay;
+    
+    mainContent.innerHTML = SearchBar() + (state.error ? ErrorDisplay(state.error) : '') + content;
     document.getElementById('search-form').addEventListener('submit', handleSearchSubmit);
 };
 
@@ -283,13 +271,13 @@ async function fetchSearchResultsPage(page) {
     const query = state.lastSearchQuery;
     if (!query) return;
 
-    setState({ isLoading: true, error: null, currentPage: page, searchResults: null });
+    setState({ isLoading: true, error: null, currentPage: page });
 
     try {
         const response = await fetch(`${API_BASE_URL}/${query}?page=${page}`);
         if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Search failed for page ${page}. Status: ${response.status}. Body: ${errorBody}`);
+             const errorData = await response.text(); // Get more info on the error
+             throw new Error(`Search failed for page ${page}. Status: ${response.status}. Details: ${errorData}`);
         }
         const data = await response.json();
         setState({ searchResults: data, isLoading: false });
@@ -352,32 +340,35 @@ function handleBack() {
          selectedAnimeId: null,
          animeDetails: null,
          selectedEpisode: null,
-         lastSearchQuery: '',
-         searchResults: null,
      });
 }
 
 // --- Initial Load ---
 function init() {
-    setState({ isLoading: true, error: null });
+    // Render the initial UI structure immediately.
+    setState({ isLoading: true });
 
     (async () => {
         try {
-            // Updated to include query parameters as per the documentation
             const [trendingRes, recentRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/top-airing?page=1`),
                 fetch(`${API_BASE_URL}/recent-episodes?page=1&type=1`),
             ]);
             
             if (!trendingRes.ok || !recentRes.ok) {
-                const errorBody = trendingRes.ok ? await recentRes.text() : await trendingRes.text();
-                throw new Error(`Failed to fetch initial data. Statuses: ${trendingRes.status}, ${recentRes.status}. Body: ${errorBody}`);
+                 throw new Error('Failed to fetch initial data from API.');
             }
             
             const trendingData = await trendingRes.json();
             const recentData = await recentRes.json();
             
-            setState({ homeData: { trending: trendingData.results, recent: recentData.results }, isLoading: false });
+            setState({ 
+                homeData: { 
+                    trending: trendingData.results, 
+                    recent: recentData.results 
+                }, 
+                isLoading: false 
+            });
         } catch (err) {
             console.error(err);
             setState({ error: 'Could not load initial anime data. The API might be down or blocked.', isLoading: false });
