@@ -20,7 +20,7 @@ let state = {
 
 // --- API Base URL pointing to Worker proxy ---
 const API_BASE = '/api/anime/aniwatch';
-const GOGOANIME_API_BASE = 'https://api.consumet.org/anime/gogoanime';
+const GOGOANIME_API_BASE = 'https://test-anime-woad.vercel.app/anime/gogoanime';
 const CORS_PROXY_URL = 'https://cors.consumet.stream/';
 
 // --- Render Helpers ---
@@ -364,10 +364,13 @@ async function handleServerSelection(episodeId, serverName) {
             const animeSlug = parts[0];
             const episodeNumber = state.animeEpisodes.find(ep => ep.episodeId === episodeId).episodeNo;
             
-            const gogoanimeSourceUrl = `${GOGOANIME_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}`;
-            const proxiedGogoanimeSourceUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(gogoanimeSourceUrl)}`;
+            // Build the full Gogoanime API URL first
+            const gogoanimeApiUrl = `${GOGOANIME_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}`;
             
-            const gogoanimeSourceRes = await fetch(proxiedGogoanimeSourceUrl);
+            // Proxy the entire API URL using the `proxy?url=` format
+            const proxiedGogoanimeApiUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(gogoanimeApiUrl)}`;
+            
+            const gogoanimeSourceRes = await fetch(proxiedGogoanimeApiUrl);
             const gogoanimeSourceData = await gogoanimeSourceRes.json();
             
             if (!gogoanimeSourceData.sources || gogoanimeSourceData.sources.length === 0) {
@@ -375,6 +378,8 @@ async function handleServerSelection(episodeId, serverName) {
             }
 
             const finalGogoanimeSourceUrl = gogoanimeSourceData.sources[0].url;
+            
+            // Proxy the final video source as well
             const finalProxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(finalGogoanimeSourceUrl)}`;
 
             setState({ videoSrc: finalProxiedUrl, isLoading: false, error: null });
