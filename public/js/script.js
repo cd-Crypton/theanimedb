@@ -21,7 +21,6 @@ let state = {
 
 // --- API Base URL pointing to the new instance ---
 const API_BASE = 'https://yumaapi.vercel.app/';
-const CORS_PROXY_URL = 'https://cors.consumet.stream/';
 
 const SERVERS = ['vidcloud', 'megacloud'];
 
