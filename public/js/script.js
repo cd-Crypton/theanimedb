@@ -45,12 +45,12 @@ const SearchBar = () => `
 </form>`;
 
 const AnimeCard = (anime) => {
-    const animeTitle = anime.name.replace(/'/g, "\\'");
+    const animeTitle = (anime.name).replace(/'/g, "\\'");
     const onclickAction = `handleSelectAnime('${anime.id}')`;
     return `
     <div onclick="${onclickAction}" class="bg-gray-800 rounded-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-transform duration-300">
       <div class="relative pb-[140%]">
-        <img src="${anime.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
+        <img src="${anime.img || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
              alt="${animeTitle}"
              class="absolute top-0 left-0 w-full h-full object-cover group-hover:opacity-75 transition-opacity"
              onerror="this.onerror=null; this.src='https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found';" />
@@ -119,16 +119,18 @@ const setState = (newState) => {
 async function fetchHomeData() {
     setState({ isLoading:true, error:null });
     try {
-        const [trendingRes, recentRes] = await Promise.all([
-            fetch(`${API_BASE}/top-airing?page=1`),
-            fetch(`${API_BASE}/recent-episodes?page=1`)
-        ]);
-        const trending = (await trendingRes.json()).results || [];
-        const recent = (await recentRes.json()).results || [];
-        setState({ homeData: { trending, recent }, isLoading:false });
+        const res = await fetch(`${API_BASE}`);
+        const data = await res.json();
+        // The API provides trending and recent data in different keys
+        const trending = data.trendingAnimes || [];
+        const recent = data.latestEpisodes || [];
+        setState({ homeData: { trending, recent } });
     } catch(err) {
         console.error(err);
-        setState({ error: 'Could not load home anime data.', isLoading:false });
+        setState({ error: 'Could not load home anime data.' });
+    } finally {
+        // This block will always run after try/catch, ensuring loading state is reset
+        setState({ isLoading:false });
     }
 }
 
@@ -136,9 +138,11 @@ async function fetchSearchResults(page=1) {
     if (!state.lastSearchQuery) return;
     setState({ isLoading:true, error:null, currentPage:page });
     try {
+        // The API expects a 'keyword' parameter for search queries
         const res = await fetch(`${API_BASE}/search?keyword=${state.lastSearchQuery}&page=${page}`);
         const data = await res.json();
-        setState({ searchResults:data, isLoading:false });
+        // The search results are under the 'animes' key
+        setState({ searchResults: { results: data.animes }, isLoading:false });
     } catch(err){
         console.error(err);
         setState({ error:'Failed to fetch search results.', isLoading:false });
