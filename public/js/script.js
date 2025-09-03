@@ -106,16 +106,21 @@ const renderPagination = () => {
 const renderHome = () => {
     let content = '';
     
-    // Always render the sections, but show a spinner inside if data is loading.
-    const trendingContent = state.homeData.trending.length > 0
-        ? state.homeData.trending.map(anime => AnimeCard(anime)).join('')
-        : Spinner();
-        
-    const recentContent = state.homeData.recent.length > 0
-        ? state.homeData.recent.map(anime => AnimeCard(anime)).join('')
-        : Spinner();
-
-    if (state.searchResults) {
+    if (state.isLoading) {
+         content = `
+            <section class="mb-10">
+                <h2 class="text-2xl font-bold text-white mb-4">Trending Now</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    ${Spinner()}
+                </div>
+            </section>
+            <section>
+                <h2 class="text-2xl font-bold text-white mb-4">Recent Episodes</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    ${Spinner()}
+                </div>
+            </section>`;
+    } else if (state.searchResults) {
         content = `
             <section>
                 <h2 class="text-2xl font-bold text-white mb-4">Search Results</h2>
@@ -125,6 +130,14 @@ const renderHome = () => {
                 ${renderPagination()}
             </section>`;
     } else {
+        const trendingContent = state.homeData.trending.length > 0
+            ? state.homeData.trending.map(anime => AnimeCard(anime)).join('')
+            : '<p class="text-gray-400 col-span-full">No trending anime found.</p>';
+            
+        const recentContent = state.homeData.recent.length > 0
+            ? state.homeData.recent.map(anime => AnimeCard(anime)).join('')
+            : '<p class="text-gray-400 col-span-full">No recent episodes found.</p>';
+
         content = `
             <section class="mb-10">
                 <h2 class="text-2xl font-bold text-white mb-4">Trending Now</h2>
@@ -255,6 +268,7 @@ const renderVideoPlayer = (episodeId) => {
 
 const updateView = () => {
     window.scrollTo(0, 0);
+    // This logic ensures that the correct view is rendered based on the current state
     if (state.view === 'home') {
         renderHome();
     } else if (state.view === 'details') {
@@ -263,7 +277,9 @@ const updateView = () => {
 };
 
 const setState = (newState) => {
+    // Merge the new state with the existing state
     state = { ...state, ...newState };
+    // After updating the state, always re-render the entire view
     updateView();
 };
 
