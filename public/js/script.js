@@ -116,29 +116,31 @@ const renderDetails = () => {
         return;
     }
 
-    const details = state.animeDetails;
+    const info = state.animeDetails.info;
+    const moreInfo = state.animeDetails.moreInfo;
+    const genres = moreInfo.Genres ? moreInfo.Genres.join(', ') : 'N/A';
 
-    // Join genres into a single string
-    const genres = details.genres ? details.genres.join(', ') : 'N/A';
-
-    // Generate episode list buttons
+    // Generate episode list buttons based on the `sub` count
     let episodeListHtml = '';
-    if (details.episodes && details.episodes.length > 0) {
+    if (info.episodes && info.episodes.sub > 0) {
+        let episodesHtml = '';
+        for (let i = 1; i <= info.episodes.sub; i++) {
+            episodesHtml += `
+                <button onclick="handlePlayEpisode('${info.id}-episode-${i}')"
+                        class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
+                    ${i}
+                </button>
+            `;
+        }
         episodeListHtml = `
             <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto max-h-96 custom-scrollbar">
-                ${details.episodes.map(ep => `
-                    <button onclick="handlePlayEpisode('${ep.id}', '${details.id}')"
-                            class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
-                        ${ep.number}
-                    </button>
-                `).join('')}
+                ${episodesHtml}
             </div>
         `;
     } else {
         episodeListHtml = '<p class="text-gray-400">No episodes found.</p>';
     }
 
-    // Generate video player HTML
     const videoPlayerHtml = state.videoSrc ? `
         <div class="w-full bg-black rounded-lg overflow-hidden mb-8">
             <video controls class="w-full h-auto" src="${state.videoSrc}" type="video/mp4"></video>
@@ -155,25 +157,25 @@ const renderDetails = () => {
         </button>
         <div class="flex flex-col md:flex-row gap-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
             <div class="md:flex-shrink-0">
-                <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
-                     alt="${details.name}"
+                <img src="${info.img || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
+                     alt="${info.name}"
                      class="w-full md:w-64 h-auto rounded-lg shadow-md" />
             </div>
             <div class="flex-grow">
-                <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${details.name}</h1>
-                <p class="text-gray-400 mb-4">${details.otherName || ''}</p>
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${info.name}</h1>
+                <p class="text-gray-400 mb-4">${moreInfo["Japanese:"] || ''}</p>
                 <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
                     <div>
                         <p class="font-semibold text-white">Released:</p>
-                        <p>${details.released || 'N/A'}</p>
+                        <p>${moreInfo["Aired:"] || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Status:</p>
-                        <p>${details.status || 'N/A'}</p>
+                        <p>${moreInfo.Status || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Type:</p>
-                        <p>${details.type || 'N/A'}</p>
+                        <p>${info.category || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Genres:</p>
@@ -182,7 +184,7 @@ const renderDetails = () => {
                 </div>
                 <p class="text-gray-300 mb-4">
                     <span class="font-semibold text-white">Summary:</span>
-                    ${details.description || 'No summary available.'}
+                    ${info.description || 'No summary available.'}
                 </p>
             </div>
         </div>
@@ -252,7 +254,6 @@ async function fetchAnimeDetails(animeId) {
 async function handlePlayEpisode(episodeId) {
     setState({ isLoading: true, videoSrc: null });
     try {
-        // Fetch server information
         const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
         const serversData = await serversRes.json();
         
@@ -260,10 +261,8 @@ async function handlePlayEpisode(episodeId) {
             throw new Error('No servers found for this episode.');
         }
         
-        // Use the first server for simplicity
         const firstServer = serversData.servers[0];
         
-        // Fetch episode streaming source
         const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${firstServer.episodeId}&server=${firstServer.serverName}`);
         const srcData = await srcRes.json();
         
@@ -273,7 +272,7 @@ async function handlePlayEpisode(episodeId) {
 
         const sourceUrl = srcData.sources[0].url;
 
-        setState({ videoSrc: sourceUrl, isLoading: false });
+        setState({ videoSrc: sourceUrl });
 
     } catch (err) {
         console.error(err);
