@@ -1,57 +1,55 @@
-// Replace this with your Vercel instance base URL
-const VERCEL_API_BASE = 'https://test-anime-woad.vercel.app';
+const ZORO_API_BASE = 'https://test-anime-woad.vercel.app';
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // --- Handle CORS preflight ---
-    if (request.method === "OPTIONS") {
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
         headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
         },
       });
     }
 
-    // --- Proxy Animepahe API requests ---
-    if (url.pathname.startsWith('/api/anime/animepahe')) {
-      // Remove the Worker prefix
-      const path = url.pathname.replace('/api/anime/animepahe', '');
-      const targetUrl = VERCEL_API_BASE + '/anime/animepahe' + path + url.search;
+    // Proxy Zoro API requests
+    if (url.pathname.startsWith('/api/anime/zoro')) {
+      const path = url.pathname.replace('/api/anime/zoro', '');
+      const targetUrl = ZORO_API_BASE + path + url.search;
 
       try {
-        const apiResponse = await fetch(targetUrl, {
+        const res = await fetch(targetUrl, {
           method: request.method,
           headers: {
-            "User-Agent": "TheAnimeDB Worker",
-            "Accept": "application/json"
+            'User-Agent': 'TheAnimeDB Worker',
+            'Accept': 'application/json',
           },
         });
 
-        const body = await apiResponse.text();
+        const body = await res.text();
 
         return new Response(body, {
-          status: apiResponse.status,
+          status: res.status,
           headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
           },
         });
       } catch (err) {
-        return new Response(JSON.stringify({ error: "Proxy failed", details: err.message }), {
+        return new Response(JSON.stringify({ error: 'Proxy failed', details: err.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         });
       }
     }
 
-    // --- Serve SPA static assets ---
+    // Serve static assets
     try {
       return await env.ASSETS.fetch(request);
     } catch {
