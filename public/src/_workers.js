@@ -13,6 +13,18 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    // --- TEST ROUTE ---
+    // If the path is exactly /api/ping, return a simple JSON response.
+    if (url.pathname === '/api/ping') {
+      const data = { status: 'ok', timestamp: new Date().toISOString() };
+      return new Response(JSON.stringify(data), {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+      });
+    }
+
     // --- API Proxy Logic ---
     // If the path starts with /api/, proxy it to the Consumet API.
     if (url.pathname.startsWith('/api/')) {
