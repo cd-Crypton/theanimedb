@@ -19,6 +19,7 @@ let state = {
 
 // --- API Base URL pointing to Worker proxy ---
 const API_BASE = '/api/anime/aniwatch';
+const GOGOANIME_API_BASE = 'https://api.consumet.org/anime/gogoanime';
 
 // --- Render Helpers ---
 const Spinner = () => `
@@ -129,7 +130,7 @@ const renderDetails = () => {
             <h3 class="text-xl font-bold text-white mb-2">Episode List</h3>
             <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto max-h-96 custom-scrollbar">
                 ${state.animeEpisodes.map(ep => `
-                    <button onclick="handleEpisodeSelection('${ep.episodeId}')"
+                    <button onclick="handleEpisodeSelection('${ep.episodeId}', '${ep.episodeNo}')"
                             class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
                         ${ep.episodeNo}
                     </button>
@@ -307,7 +308,7 @@ async function handleServerSelection(episodeId, serverName) {
         if (!serversData.sub || serversData.sub.length === 0) {
             throw new Error('No servers found for this episode.');
         }
-
+        
         const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${serversData.episodeId}&server=${serverName}`);
         const srcData = await srcRes.json();
         
@@ -318,12 +319,34 @@ async function handleServerSelection(episodeId, serverName) {
         const sourceUrl = srcData.sources[0].url;
 
         setState({ videoSrc: sourceUrl, isLoading: false, error: null });
+
     } catch (err) {
-        console.error(err);
-        setState({ error: `Failed to load episode source: ${err.message}`, isLoading: false });
+        console.error("AniWatch API failed, attempting fallback:", err);
+
+        // Fallback to Gogoanime API
+        try {
+            // Note: The consumet API requires the anime slug and episode number
+            // We need to extract the anime slug and episode number from the Aniwatch episodeId
+            const parts = episodeId.split("?ep=");
+            const animeSlug = parts[0];
+            const episodeNumber = state.animeEpisodes.find(ep => ep.episodeId === episodeId).episodeNo;
+            
+            const gogoanimeSourceRes = await fetch(`${GOGOANIME_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}`);
+            const gogoanimeSourceData = await gogoanimeSourceRes.json();
+            
+            if (!gogoanimeSourceData.sources || gogoanimeSourceData.sources.length === 0) {
+                throw new Error('Gogoanime fallback failed to provide sources.');
+            }
+
+            const gogoanimeSourceUrl = gogoanimeSourceData.sources[0].url;
+
+            setState({ videoSrc: gogoanimeSourceUrl, isLoading: false, error: null });
+        } catch (gogoanimeErr) {
+            console.error(gogoanimeErr);
+            setState({ error: `Fallback failed to load episode: ${gogoanimeErr.message}`, isLoading: false });
+        }
     }
 }
-
 
 // --- Event Handlers ---
 function handleSearchSubmit(e){
