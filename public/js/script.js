@@ -22,8 +22,6 @@ let state = {
 const API_BASE = '/api/anime/aniwatch';
 const GOGOANIME_API_BASE = 'https://api.consumet.org/anime/gogoanime';
 const CORS_PROXY_URL = 'https://cors.consumet.stream/';
-// Combined Gogoanime API with the CORS proxy for all calls
-const GOGOANIME_API_PROXY_BASE = `${CORS_PROXY_URL}${GOGOANIME_API_BASE}`;
 
 // --- Render Helpers ---
 const Spinner = () => `
@@ -353,7 +351,7 @@ async function handleServerSelection(episodeId, serverName) {
         }
 
         const sourceUrl = srcData.sources[0].url;
-        const proxiedUrl = `${CORS_PROXY_URL}${sourceUrl}`;
+        const proxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(sourceUrl)}`;
 
         setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
 
@@ -366,19 +364,20 @@ async function handleServerSelection(episodeId, serverName) {
             const animeSlug = parts[0];
             const episodeNumber = state.animeEpisodes.find(ep => ep.episodeId === episodeId).episodeNo;
             
-            // This fetch call is now proxied from the start
-            const gogoanimeSourceRes = await fetch(`${GOGOANIME_API_PROXY_BASE}/watch/${animeSlug}-episode-${episodeNumber}`);
+            const gogoanimeSourceUrl = `${GOGOANIME_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}`;
+            const proxiedGogoanimeSourceUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(gogoanimeSourceUrl)}`;
+            
+            const gogoanimeSourceRes = await fetch(proxiedGogoanimeSourceUrl);
             const gogoanimeSourceData = await gogoanimeSourceRes.json();
             
             if (!gogoanimeSourceData.sources || gogoanimeSourceData.sources.length === 0) {
                 throw new Error('Gogoanime fallback failed to provide sources.');
             }
 
-            const gogoanimeSourceUrl = gogoanimeSourceData.sources[0].url;
-            // The final source URL also needs to be proxied
-            const proxiedUrl = `${CORS_PROXY_URL}${gogoanimeSourceUrl}`;
+            const finalGogoanimeSourceUrl = gogoanimeSourceData.sources[0].url;
+            const finalProxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(finalGogoanimeSourceUrl)}`;
 
-            setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
+            setState({ videoSrc: finalProxiedUrl, isLoading: false, error: null });
         } catch (gogoanimeErr) {
             console.error(gogoanimeErr);
             setState({ error: `Fallback failed to load episode: ${gogoanimeErr.message}`, isLoading: false });
