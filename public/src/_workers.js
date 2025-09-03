@@ -1,5 +1,3 @@
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
-
 // The base URL of the public Consumet API
 const CONSUMET_API_BASE = 'https://api.consumet.org';
 
