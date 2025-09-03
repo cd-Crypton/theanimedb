@@ -11,11 +11,12 @@ let state = {
     animeDetails: null,
     animeEpisodes: [],
     selectedEpisodeId: null,
-    availableServers: [],
+    availableSubServers: [], // New state for subbed servers
+    availableDubServers: [], // New state for dubbed servers
     videoSrc: null,
     isLoading: true,
     error: null,
-    timeoutId: null, // New state variable to hold the timeout timer
+    timeoutId: null,
 };
 
 // --- API Base URL pointing to Worker proxy ---
@@ -157,10 +158,17 @@ const renderDetails = () => {
                 <video controls class="w-full h-auto" src="${state.videoSrc}" type="video/mp4"></video>
             </div>
         `;
-    } else if (state.availableServers.length > 0) {
-        const serverButtonsHtml = state.availableServers.map(server => `
-            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server.serverName}')" 
+    } else if (state.availableSubServers.length > 0 || state.availableDubServers.length > 0) {
+        const subServerButtonsHtml = state.availableSubServers.map(server => `
+            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server.serverName}', 'sub')" 
                     class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                ${server.serverName}
+            </button>
+        `).join('');
+
+        const dubServerButtonsHtml = state.availableDubServers.map(server => `
+            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server.serverName}', 'dub')" 
+                    class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
                 ${server.serverName}
             </button>
         `).join('');
@@ -168,7 +176,14 @@ const renderDetails = () => {
         videoPlayerHtml = `
             <div class="mb-8">
                 <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
-                <div class="flex flex-wrap gap-2">${serverButtonsHtml}</div>
+                ${state.availableSubServers.length > 0 ? `
+                    <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
+                    <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
+                ` : ''}
+                ${state.availableDubServers.length > 0 ? `
+                    <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
+                    <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
+                ` : ''}
             </div>
         `;
     }
@@ -289,7 +304,7 @@ async function fetchSearchResults(page = 1) {
 }
 
 async function fetchAnimeDetails(animeId) {
-    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, availableServers: [], selectedEpisodeId: null });
+    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, availableSubServers: [], availableDubServers: [], selectedEpisodeId: null });
     startTimeout("Failed to fetch anime details.");
     try {
         const [detailsRes, episodesRes] = await Promise.all([
@@ -312,19 +327,25 @@ async function fetchAnimeDetails(animeId) {
 }
 
 async function handleEpisodeSelection(episodeId) {
-    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, availableServers: [], error: null });
+    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, availableSubServers: [], availableDubServers: [], error: null });
     startTimeout("Failed to load servers for this episode.");
     try {
         const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
         const serversData = await serversRes.json();
         
-        let availableServers = serversData.sub;
+        const availableSubServers = serversData.sub || [];
+        const availableDubServers = serversData.dub || [];
         
-        if (!availableServers || availableServers.length === 0) {
+        if (availableSubServers.length === 0 && availableDubServers.length === 0) {
             throw new Error('No servers found for this episode.');
         }
         
-        setState({ availableServers, isLoading: false, error: null });
+        setState({ 
+            availableSubServers: availableSubServers,
+            availableDubServers: availableDubServers,
+            isLoading: false, 
+            error: null 
+        });
 
     } catch (err) {
         console.error(err);
@@ -332,55 +353,62 @@ async function handleEpisodeSelection(episodeId) {
     }
 }
 
-async function handleServerSelection(episodeId, serverName) {
+async function fetchAniwatchSource(episodeId, serverName) {
+    const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
+    const serversData = await serversRes.json();
+    
+    if (!serversData.sub || serversData.sub.length === 0) {
+        throw new Error('No servers found for this episode.');
+    }
+
+    const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${serversData.episodeId}&server=${serverName}`);
+    const srcData = await srcRes.json();
+    
+    if (!srcData.sources || srcData.sources.length === 0) {
+        throw new Error('No streaming sources found.');
+    }
+
+    const sourceUrl = srcData.sources[0].url;
+    // Apply CORS proxy to the final video URL
+    return `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(sourceUrl)}`;
+}
+
+async function fetchZoroSource(episodeId, serverName, type) {
+    // The Zoro API endpoint for streaming is different
+    const zoroEpisodeId = episodeId.replace('?ep=', '$episode$');
+    const zoroUrl = `${ZORO_API_BASE}/watch/${zoroEpisodeId}?server=${serverName}`;
+    
+    const zoroRes = await fetch(zoroUrl);
+    const zoroData = await zoroRes.json();
+    
+    if (!zoroData.sources || zoroData.sources.length === 0) {
+        throw new Error('Zoro fallback failed to provide sources.');
+    }
+
+    const finalZoroSourceUrl = zoroData.sources[0].url;
+    
+    // Apply CORS proxy to the final video source as well
+    return `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(finalZoroSourceUrl)}`;
+}
+
+async function handleServerSelection(episodeId, serverName, type) {
     setState({ isLoading: true, videoSrc: null, error: null });
     startTimeout(`Failed to load streaming source from ${serverName}.`);
     try {
-        const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
-        const serversData = await serversRes.json();
-        
-        if (!serversData.sub || serversData.sub.length === 0) {
-            throw new Error('No servers found for this episode.');
-        }
-        
-        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${serversData.episodeId}&server=${serverName}`);
-        const srcData = await srcRes.json();
-        
-        if (!srcData.sources || srcData.sources.length === 0) {
-            throw new Error('No streaming sources found.');
+        let sourceUrl;
+        if (serverName === 'AniwatchServer') {
+            sourceUrl = await fetchAniwatchSource(episodeId, serverName);
+        } else {
+            sourceUrl = await fetchZoroSource(episodeId, serverName, type);
         }
 
-        const sourceUrl = srcData.sources[0].url;
-        const proxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(sourceUrl)}`;
-
-        setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
-
+        setState({ videoSrc: sourceUrl, isLoading: false, error: null });
     } catch (err) {
-        console.error("AniWatch API failed, attempting fallback:", err);
-
-        // Fallback to Zoro API
-        try {
-            const parts = episodeId.split("?ep=");
-            const zoroEpisodeId = parts[0] + "$episode$" + parts[1];
-            
-            const zoroRes = await fetch(`${ZORO_API_BASE}/watch?episodeId=${zoroEpisodeId}`);
-            const zoroData = await zoroRes.json();
-            
-            if (!zoroData.sources || zoroData.sources.length === 0) {
-                throw new Error('Zoro fallback failed to provide sources.');
-            }
-
-            const finalZoroSourceUrl = zoroData.sources[0].url;
-            
-            const finalProxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(finalZoroSourceUrl)}`;
-
-            setState({ videoSrc: finalProxiedUrl, isLoading: false, error: null });
-        } catch (zoroErr) {
-            console.error(zoroErr);
-            setState({ error: `Fallback failed to load episode: ${zoroErr.message}`, isLoading: false });
-        }
+        console.error(err);
+        setState({ error: `Failed to load episode source: ${err.message}`, isLoading: false });
     }
 }
+
 
 // --- Event Handlers ---
 function handleSearchSubmit(e){
@@ -405,7 +433,7 @@ function handleSelectAnime(animeId){
 }
 
 function handleGoHome(){
-    setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableServers: [] });
+    setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [] });
     fetchHomeData();
 }
 
