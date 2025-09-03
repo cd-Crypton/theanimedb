@@ -11,7 +11,8 @@ let state = {
     animeDetails: null,
     animeEpisodes: [],
     selectedEpisodeId: null,
-    availableServers: [],
+    availableSubServers: [],
+    availableDubServers: [],
     videoSrc: null,
     isLoading: true,
     error: null,
@@ -20,7 +21,7 @@ let state = {
 
 // --- API Base URL pointing to Worker proxy ---
 const API_BASE = '/api/anime/aniwatch';
-const ZORO_API_BASE = 'https://test-anime-woad.vercel.app/anime/zoro';
+const ZORO_API_BASE = 'https://yumaapi.vercel.app/anime/zoro';
 const CORS_PROXY_URL = 'https://cors.consumet.stream/';
 
 // --- Render Helpers ---
@@ -319,9 +320,9 @@ async function fetchAnimeDetails(animeId) {
             throw new Error("Invalid episode data from Aniwatch API.");
         }
 
-        // Fetch Zoro servers for the first episode to display on the details page.
-        // This is necessary to know which servers are available for streaming.
-        let availableServers = [];
+        // Use Zoro API for server list
+        let availableSubServers = [];
+        let availableDubServers = [];
         if (episodesData.episodes.length > 0) {
             const firstEpisodeId = episodesData.episodes[0].episodeId;
             const zoroEpisodeId = firstEpisodeId.replace('?ep=', '$episode$');
@@ -329,18 +330,18 @@ async function fetchAnimeDetails(animeId) {
             const zoroServersRes = await fetch(`${ZORO_API_BASE}/watch?episodeId=${zoroEpisodeId}`);
             const zoroServersData = await zoroServersRes.json();
 
-            // The Zoro API returns a list of streaming sources, not servers.
-            // We'll create a dummy server list based on the available sources to display to the user.
             if (zoroServersData.sources && zoroServersData.sources.length > 0) {
-                 // For this example, we'll just present 'vidcloud' as the server option, as that's the one we'll be using.
-                availableServers.push({ serverName: 'vidcloud', serverId: 1 });
+                // The Zoro API returns a single list of sources. For simplicity, we'll
+                // map this to a single server option.
+                availableSubServers.push({ serverName: 'vidcloud', serverId: 1 });
             }
         }
 
         setState({
             animeDetails: detailsData,
             animeEpisodes: episodesData.episodes,
-            availableSubServers: availableServers,
+            availableSubServers: availableSubServers,
+            availableDubServers: availableDubServers,
             isLoading: false
         });
     } catch (err) {
@@ -358,20 +359,20 @@ async function handleEpisodeSelection(episodeId) {
         const zoroServersRes = await fetch(`${ZORO_API_BASE}/watch?episodeId=${zoroEpisodeId}`);
         const zoroServersData = await zoroServersRes.json();
 
-        let availableServers = [];
+        let availableSubServers = [];
         if (zoroServersData.sources && zoroServersData.sources.length > 0) {
-            availableServers.push({ serverName: 'vidcloud', serverId: 1 });
+            availableSubServers.push({ serverName: 'vidcloud', serverId: 1 });
         }
 
-        if (availableServers.length === 0) {
+        if (availableSubServers.length === 0) {
             throw new Error('No streaming servers found for this episode from Zoro.');
         }
 
-        setState({ 
-            availableSubServers: availableServers,
-            availableDubServers: [], // Assuming only subbed episodes for simplicity
-            isLoading: false, 
-            error: null 
+        setState({
+            availableSubServers: availableSubServers,
+            availableDubServers: [],
+            isLoading: false,
+            error: null
         });
 
     } catch (err) {
@@ -386,7 +387,6 @@ async function handleServerSelection(episodeId, serverName) {
     try {
         const zoroEpisodeId = episodeId.replace('?ep=', '$episode$');
         
-        // Build the full Zoro API URL
         const zoroUrl = `${ZORO_API_BASE}/watch?episodeId=${zoroEpisodeId}&server=${serverName}`;
         
         const zoroRes = await fetch(zoroUrl);
@@ -397,6 +397,7 @@ async function handleServerSelection(episodeId, serverName) {
         }
 
         const finalZoroSourceUrl = zoroData.sources[0].url;
+        
         const finalProxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(finalZoroSourceUrl)}`;
 
         setState({ videoSrc: finalProxiedUrl, isLoading: false, error: null });
