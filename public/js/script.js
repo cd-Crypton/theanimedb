@@ -334,7 +334,7 @@ async function handleEpisodeSelection(episodeId) {
 
 async function handleServerSelection(episodeId, serverName) {
     setState({ isLoading: true, videoSrc: null, error: null });
-    startTimeout("Failed to load streaming source from AniWatch.");
+    startTimeout(`Failed to load streaming source from ${serverName}.`);
     try {
         const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
         const serversData = await serversRes.json();
@@ -351,8 +351,9 @@ async function handleServerSelection(episodeId, serverName) {
         }
 
         const sourceUrl = srcData.sources[0].url;
+        const proxiedUrl = `${CORS_PROXY_URL}${sourceUrl}`; // Apply proxy here
 
-        setState({ videoSrc: sourceUrl, isLoading: false, error: null });
+        setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
 
     } catch (err) {
         console.error("AniWatch API failed, attempting fallback:", err);
