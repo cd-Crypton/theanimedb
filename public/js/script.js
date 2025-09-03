@@ -371,17 +371,26 @@ function init() {
                 fetch(`${API_BASE_URL}/recent-episodes?page=1&type=1`),
             ]);
             
+            // --- DIAGNOSTIC LOGGING ---
+            const trendingText = await trendingRes.text();
+            const recentText = await recentRes.text();
+            console.log("--- TRENDING RESPONSE (RAW) ---");
+            console.log(trendingText);
+            console.log("--- RECENT EPISODES RESPONSE (RAW) ---");
+            console.log(recentText);
+            // --- END LOGGING ---
+
             if (!trendingRes.ok || !recentRes.ok) {
                  throw new Error('Failed to fetch initial data from API.');
             }
             
-            const trendingData = await trendingRes.json();
-            const recentData = await recentRes.json();
+            const trendingData = JSON.parse(trendingText);
+            const recentData = JSON.parse(recentText);
             
             setState({ 
                 homeData: { 
-                    trending: trendingData.results, 
-                    recent: recentData.results 
+                    trending: trendingData.results || [], 
+                    recent: recentData.results || [] 
                 }, 
                 isLoading: false 
             });
