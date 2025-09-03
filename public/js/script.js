@@ -14,9 +14,8 @@ let state = {
     error: null,
 };
 
-// --- API Base URLs (pointing to the worker proxy) ---
-const API_BASE_URL_GOGO = '/api/anime/gogoanime';
-const API_BASE_URL_PAHE = '/api/anime/animepahe';
+// --- API Base URL (Now exclusively Gogoanime) ---
+const API_BASE_URL = '/api/anime/gogoanime';
 
 // --- Render Functions (generating HTML strings) ---
 
@@ -53,12 +52,10 @@ const SearchBar = () => `
         </div>
     </form>`;
 
-const AnimeCard = (anime, isGogoResult = false) => {
+const AnimeCard = (anime) => {
     // Escape single quotes in titles to prevent breaking the onclick attribute
     const animeTitle = (anime.title?.romaji || anime.title).replace(/'/g, "\\'");
-    const onclickAction = isGogoResult 
-        ? `alert('Details from this provider are not supported in this demo. Please use search.')` 
-        : `handleSelectAnime('${anime.id}')`;
+    const onclickAction = `handleSelectAnime('${anime.id}')`;
 
     return `
     <div
@@ -84,9 +81,8 @@ const AnimeCard = (anime, isGogoResult = false) => {
 const renderPagination = () => {
     if (!state.searchResults) return '';
     
-    // The API doesn't provide a 'hasNextPage' flag. A common heuristic is to disable
-    // the 'Next' button if the number of results is less than the per-page limit (default is 20).
-    const hasNextPage = state.searchResults.length === 20;
+    // Gogoanime provides a hasNextPage flag, which is more reliable.
+    const hasNextPage = state.searchResults.hasNextPage;
 
     return `
         <div class="flex justify-center items-center gap-4 mt-8">
@@ -116,7 +112,7 @@ const renderHome = () => {
             <section>
                 <h2 class="text-2xl font-bold text-white mb-4">Search Results</h2>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    ${state.searchResults.map(anime => AnimeCard(anime)).join('')}
+                    ${state.searchResults.results.map(anime => AnimeCard(anime)).join('')}
                 </div>
                 ${renderPagination()}
             </section>`;
@@ -125,13 +121,13 @@ const renderHome = () => {
             <section class="mb-10">
                 <h2 class="text-2xl font-bold text-white mb-4">Trending Now</h2>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    ${state.homeData.trending.map(anime => AnimeCard(anime, true)).join('')}
+                    ${state.homeData.trending.map(anime => AnimeCard(anime)).join('')}
                 </div>
             </section>
             <section>
                 <h2 class="text-2xl font-bold text-white mb-4">Recent Episodes</h2>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    ${state.homeData.recent.map(anime => AnimeCard(anime, true)).join('')}
+                    ${state.homeData.recent.map(anime => AnimeCard(anime)).join('')}
                 </div>
             </section>`;
     }
@@ -164,9 +160,9 @@ const renderDetails = () => {
             <div class="lg:flex gap-8">
                 <div class="lg:w-3/4">
                     ${selectedEp ? `
-                        <h2 class="text-2xl font-bold text-white mb-2">${details.title?.romaji}</h2>
+                        <h2 class="text-2xl font-bold text-white mb-2">${details.title}</h2>
                         <h3 class="text-lg text-gray-300 mb-4">
-                            Watching: Episode ${selectedEp.episode}
+                            Watching: Episode ${selectedEp.number}
                         </h3>
                         <div id="video-player-container"></div>
                     ` : `
@@ -184,7 +180,7 @@ const renderDetails = () => {
                                     <button
                                         onclick='handleSelectEpisode(${JSON.stringify(ep).replace(/'/g, "&apos;")})'
                                         class="w-full text-left p-3 rounded-md transition-colors ${selectedEp?.id === ep.id ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}">
-                                        Episode ${ep.episode}
+                                        Episode ${ep.number}
                                     </button>
                                 </li>
                             `).join('')}
@@ -195,13 +191,13 @@ const renderDetails = () => {
         </div>`;
     
     if (selectedEp) {
-        renderVideoPlayer(selectedEp.id, 'animepahe');
+        renderVideoPlayer(selectedEp.id);
     }
 };
 
-const renderVideoPlayer = (episodeId, server) => {
+const renderVideoPlayer = (episodeId) => {
     const container = document.getElementById('video-player-container');
-    if (!container) return; // Exit if container doesn't exist yet
+    if (!container) return;
     container.innerHTML = `
         <div class="aspect-video bg-black rounded-lg mb-4 relative">
             <div id="video-loader" class="absolute inset-0 flex items-center justify-center">${Spinner()}</div>
@@ -211,7 +207,7 @@ const renderVideoPlayer = (episodeId, server) => {
     const video = document.getElementById('video-player');
     const loader = document.getElementById('video-loader');
     
-    fetch(`${API_BASE_URL_PAHE}/watch/${episodeId}?server=${server}`)
+    fetch(`${API_BASE_URL}/watch/${episodeId}?server=gogoanime`)
         .then(res => {
             if (!res.ok) throw new Error(`Failed to fetch stream data. Status: ${res.status}`);
             return res.json();
@@ -220,7 +216,6 @@ const renderVideoPlayer = (episodeId, server) => {
             const hlsSource = data.sources.find(s => s.quality === '1080p' || s.quality === '720p' || s.quality === 'default');
             if (!hlsSource) throw new Error("No suitable HLS stream found.");
 
-            // Use the CORS proxy for the video URL
             const proxiedUrl = `https://cors.consumet.stream/${hlsSource.url}`;
 
             if (Hls.isSupported()) {
@@ -270,13 +265,13 @@ async function fetchSearchResultsPage(page) {
     setState({ isLoading: true, error: null, currentPage: page });
 
     try {
-        const response = await fetch(`${API_BASE_URL_PAHE}/${query}?page=${page}`);
+        const response = await fetch(`${API_BASE_URL}/${query}?page=${page}`);
         if (!response.ok) throw new Error(`Search failed for page ${page}. Status: ${response.status}`);
         const data = await response.json();
-        setState({ searchResults: data.results, isLoading: false });
+        setState({ searchResults: data, isLoading: false });
     } catch (err) {
-        console.error(err);
-        setState({ error: 'Failed to load search results. Please try again.', isLoading: false });
+        console.error("Search API Error:", err);
+        setState({ error: `Failed to load search results. Please check the browser console for more details.`, isLoading: false });
     }
 }
 
@@ -295,7 +290,6 @@ async function handleSearchSubmit(event) {
     const query = document.getElementById('search-input').value.trim();
     if (!query) return;
     
-    // Set state for a new search
     setState({ 
         lastSearchQuery: query, 
         currentPage: 1, 
@@ -304,19 +298,17 @@ async function handleSearchSubmit(event) {
         searchResults: null 
     });
 
-    // Fetch the first page of results for the new query
     await fetchSearchResultsPage(1);
 }
 
 async function handleSelectAnime(animeId) {
     setState({ view: 'details', selectedAnimeId: animeId, isLoading: true, error: null, animeDetails: null });
     try {
-        const response = await fetch(`${API_BASE_URL_PAHE}/info/${animeId}`);
+        const response = await fetch(`${API_BASE_URL}/info/${animeId}`);
         if (!response.ok) throw new Error(`Failed to fetch anime details.`);
         const data = await response.json();
         setState({ 
             animeDetails: data, 
-            // Automatically select first episode
             selectedEpisode: (data.episodes && data.episodes.length > 0) ? data.episodes[0] : null,
             isLoading: false 
         });
@@ -336,33 +328,27 @@ function handleBack() {
          selectedAnimeId: null,
          animeDetails: null,
          selectedEpisode: null,
-         // keep search results, lastSearchQuery, and currentPage
      });
 }
 
 // --- Initial Load ---
 function init() {
-    // Render the initial view with a loading state immediately.
-    // This ensures the search bar and spinner are visible while data is fetched.
     setState({ isLoading: true });
 
-    // Fetch data in the background.
     (async () => {
         try {
             const [trendingRes, recentRes] = await Promise.all([
-                fetch(`${API_BASE_URL_GOGO}/top-airing`),
-                fetch(`${API_BASE_URL_GOGO}/recent-episodes`),
+                fetch(`${API_BASE_URL}/top-airing`),
+                fetch(`${API_BASE_URL}/recent-episodes`),
             ]);
             if (!trendingRes.ok || !recentRes.ok) throw new Error('Failed to fetch initial data.');
             
             const trendingData = await trendingRes.json();
             const recentData = await recentRes.json();
             
-            // Once data is loaded, update the state to show the content.
             setState({ homeData: { trending: trendingData.results, recent: recentData.results }, isLoading: false });
         } catch (err) {
             console.error(err);
-            // If fetching fails, update the state to show an error message.
             setState({ error: 'Could not load initial anime data. The API might be down.', isLoading: false });
         }
     })();
