@@ -9,7 +9,9 @@ let state = {
     currentPage: 1,
     selectedAnimeId: null,
     animeDetails: null,
-    animeEpisodes: [], // New state variable for episodes list with correct IDs
+    animeEpisodes: [],
+    selectedEpisodeId: null, // New state for selected episode
+    availableServers: [],   // New state to hold available servers
     videoSrc: null,
     isLoading: true,
     error: null,
@@ -124,9 +126,10 @@ const renderDetails = () => {
     let episodeListHtml = '';
     if (state.animeEpisodes && state.animeEpisodes.length > 0) {
         episodeListHtml = `
+            <h3 class="text-xl font-bold text-white mb-2">Episode List</h3>
             <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto max-h-96 custom-scrollbar">
                 ${state.animeEpisodes.map(ep => `
-                    <button onclick="handlePlayEpisode('${ep.episodeId}')"
+                    <button onclick="handleEpisodeSelection('${ep.episodeId}')"
                             class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
                         ${ep.episodeNo}
                     </button>
@@ -137,11 +140,28 @@ const renderDetails = () => {
         episodeListHtml = '<p class="text-gray-400">No episodes found.</p>';
     }
 
-    const videoPlayerHtml = state.videoSrc ? `
-        <div class="w-full bg-black rounded-lg overflow-hidden mb-8">
-            <video controls class="w-full h-auto" src="${state.videoSrc}" type="video/mp4"></video>
-        </div>
-    ` : '';
+    let videoPlayerHtml = '';
+    if (state.videoSrc) {
+        videoPlayerHtml = `
+            <div class="w-full bg-black rounded-lg overflow-hidden mb-8">
+                <video controls class="w-full h-auto" src="${state.videoSrc}" type="video/mp4"></video>
+            </div>
+        `;
+    } else if (state.availableServers.length > 0) {
+        const serverButtonsHtml = state.availableServers.map(server => `
+            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server.serverName}')" 
+                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                ${server.serverName}
+            </button>
+        `).join('');
+
+        videoPlayerHtml = `
+            <div class="mb-8">
+                <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
+                <div class="flex flex-wrap gap-2">${serverButtonsHtml}</div>
+            </div>
+        `;
+    }
 
     const content = `
     <div class="max-w-4xl mx-auto">
@@ -236,7 +256,7 @@ async function fetchSearchResults(page=1) {
 }
 
 async function fetchAnimeDetails(animeId) {
-    setState({ isLoading:true, error:null, view:'details', animeDetails: null, videoSrc: null });
+    setState({ isLoading:true, error:null, view:'details', animeDetails: null, videoSrc: null, availableServers: [], selectedEpisodeId: null });
     try {
         const [detailsRes, episodesRes] = await Promise.all([
             fetch(`${API_BASE}/anime/${animeId}`),
@@ -257,8 +277,8 @@ async function fetchAnimeDetails(animeId) {
     }
 }
 
-async function handlePlayEpisode(episodeId) {
-    setState({ isLoading: true, videoSrc: null, error: null });
+async function handleEpisodeSelection(episodeId) {
+    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, availableServers: [], error: null });
     try {
         const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
         const serversData = await serversRes.json();
@@ -269,10 +289,19 @@ async function handlePlayEpisode(episodeId) {
             throw new Error('No servers found for this episode.');
         }
         
-        const firstServer = availableServers[0];
-        
-        // Corrected API call to use the correct episodeId from the serversData object
-        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${serversData.episodeId}&server=${firstServer.serverName}`);
+        setState({ availableServers, isLoading: false });
+
+    } catch (err) {
+        console.error(err);
+        setState({ error: `Failed to load servers: ${err.message}`, isLoading: false });
+    }
+}
+
+async function handleServerSelection(episodeId, serverName) {
+    setState({ isLoading: true, videoSrc: null, error: null });
+    try {
+        // Fetch the streaming source using the selected server
+        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${episodeId}&server=${serverName}`);
         const srcData = await srcRes.json();
         
         if (!srcData.sources || srcData.sources.length === 0) {
@@ -281,15 +310,13 @@ async function handlePlayEpisode(episodeId) {
 
         const sourceUrl = srcData.sources[0].url;
 
-        setState({ videoSrc: sourceUrl });
-
+        setState({ videoSrc: sourceUrl, isLoading: false });
     } catch (err) {
         console.error(err);
-        setState({ error: `Failed to load episode: ${err.message}` });
-    } finally {
-        setState({ isLoading: false });
+        setState({ error: `Failed to load episode source: ${err.message}`, isLoading: false });
     }
 }
+
 
 // --- Event Handlers ---
 function handleSearchSubmit(e){
@@ -314,7 +341,7 @@ function handleSelectAnime(animeId){
 }
 
 function handleGoHome(){
-    setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null });
+    setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableServers: [] });
     fetchHomeData();
 }
 
