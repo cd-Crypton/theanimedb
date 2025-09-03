@@ -9,7 +9,8 @@ let state = {
     currentPage: 1,
     selectedAnimeId: null,
     animeDetails: null,
-    videoSrc: null,       // New state variable for the video source
+    animeEpisodes: [], // New state variable for episodes list with correct IDs
+    videoSrc: null,
     isLoading: true,
     error: null,
 };
@@ -120,21 +121,16 @@ const renderDetails = () => {
     const moreInfo = state.animeDetails.moreInfo;
     const genres = moreInfo.Genres ? moreInfo.Genres.join(', ') : 'N/A';
 
-    // Generate episode list buttons based on the `sub` count
     let episodeListHtml = '';
-    if (info.episodes && info.episodes.sub > 0) {
-        let episodesHtml = '';
-        for (let i = 1; i <= info.episodes.sub; i++) {
-            episodesHtml += `
-                <button onclick="handlePlayEpisode('${info.id}', ${i})"
-                        class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
-                    ${i}
-                </button>
-            `;
-        }
+    if (state.animeEpisodes && state.animeEpisodes.length > 0) {
         episodeListHtml = `
             <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto max-h-96 custom-scrollbar">
-                ${episodesHtml}
+                ${state.animeEpisodes.map(ep => `
+                    <button onclick="handlePlayEpisode('${ep.episodeId}')"
+                            class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
+                        ${ep.episodeNo}
+                    </button>
+                `).join('')}
             </div>
         `;
     } else {
@@ -242,19 +238,28 @@ async function fetchSearchResults(page=1) {
 async function fetchAnimeDetails(animeId) {
     setState({ isLoading:true, error:null, view:'details', animeDetails: null, videoSrc: null });
     try {
-        const res = await fetch(`${API_BASE}/anime/${animeId}`);
-        const data = await res.json();
-        setState({ animeDetails: data, isLoading: false });
+        const [detailsRes, episodesRes] = await Promise.all([
+            fetch(`${API_BASE}/anime/${animeId}`),
+            fetch(`${API_BASE}/episodes/${animeId}`)
+        ]);
+
+        const detailsData = await detailsRes.json();
+        const episodesData = await episodesRes.json();
+
+        setState({ 
+            animeDetails: detailsData, 
+            animeEpisodes: episodesData.episodes,
+            isLoading: false 
+        });
     } catch (err) {
         console.error(err);
         setState({ error: 'Failed to fetch anime details.', isLoading: false });
     }
 }
 
-async function handlePlayEpisode(animeId, episodeNumber) {
+async function handlePlayEpisode(episodeId) {
     setState({ isLoading: true, videoSrc: null, error: null });
     try {
-        const episodeId = `${animeId}?ep=${episodeNumber}`;
         const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
         const serversData = await serversRes.json();
         
@@ -266,7 +271,7 @@ async function handlePlayEpisode(animeId, episodeNumber) {
         
         const firstServer = availableServers[0];
         
-        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${episodeId}&server=${firstServer.serverName}`);
+        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${firstServer.episodeId}&server=${firstServer.serverName}`);
         const srcData = await srcRes.json();
         
         if (!srcData.sources || srcData.sources.length === 0) {
