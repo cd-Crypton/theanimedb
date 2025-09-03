@@ -1,4 +1,4 @@
-const ZORO_API_BASE = 'https://test-anime-woad.vercel.app';
+const ZORO_API_BASE = 'https://api.consumet.org/anime/zoro';
 
 export default {
   async fetch(request, env, ctx) {
