@@ -5,6 +5,7 @@ let state = {
     view: 'home', // 'home' or 'details'
     homeData: { trending: [], recent: [] },
     searchResults: null,
+    searchSuggestions: [], // New state variable for search suggestions
     lastSearchQuery: '',
     currentPage: 1,
     selectedAnimeId: null,
@@ -16,7 +17,7 @@ let state = {
     videoSrc: null,
     isLoading: true,
     error: null,
-    timeoutId: null, // New state variable to hold the timeout timer
+    timeoutId: null,
 };
 
 // --- API Base URL pointing to the new instance ---
@@ -166,12 +167,10 @@ const renderDetails = () => {
         videoPlayerHtml = `
             <div class="flex justify-center mb-8">
                 <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
-                    <video id="video-player" controls class="w-full h-full"></video>
+                    <video controls class="w-full h-full" src="${state.videoSrc}" type="video/mp4"></video>
                 </div>
             </div>
         `;
-        // We render the HTML first, then initialize the video player with hls.js
-        setTimeout(() => initializeVideoPlayer(state.videoSrc), 0);
     } else if (state.selectedEpisodeId) {
         const subServerButtonsHtml = SERVERS.map(server => `
             <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'sub')" 
@@ -255,6 +254,7 @@ const renderDetails = () => {
 // --- App Logic ---
 const setState = (newState) => {
     state = { ...state, ...newState };
+    // Clear existing timeout if it's active
     if (state.timeoutId) {
         clearTimeout(state.timeoutId);
         state.timeoutId = null;
@@ -267,28 +267,8 @@ const setState = (newState) => {
     }
 };
 
-const initializeVideoPlayer = (videoSrc) => {
-    const video = document.getElementById('video-player');
-    if (video) {
-        // Check if HLS is supported by the browser
-        if (Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(videoSrc);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                video.play();
-            });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native HLS support for Safari and other browsers
-            video.src = videoSrc;
-            video.addEventListener('loadedmetadata', function() {
-                video.play();
-            });
-        }
-    }
-};
-
 const startTimeout = (message) => {
+    // Set a new timeout and store its ID
     const timeoutId = setTimeout(() => {
         setState({
             isLoading: false,
@@ -426,6 +406,7 @@ async function fetchSearchSuggestions(query) {
     }
   } catch(err) {
     console.error("Failed to fetch search suggestions:", err);
+    // Do not set an error message in the UI for suggestions
   }
 }
 
