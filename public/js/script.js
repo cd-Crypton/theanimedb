@@ -126,7 +126,7 @@ const renderDetails = () => {
         let episodesHtml = '';
         for (let i = 1; i <= info.episodes.sub; i++) {
             episodesHtml += `
-                <button onclick="handlePlayEpisode('${info.id}-episode-${i}')"
+                <button onclick="handlePlayEpisode('${info.id}', ${i})"
                         class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
                     ${i}
                 </button>
@@ -251,19 +251,22 @@ async function fetchAnimeDetails(animeId) {
     }
 }
 
-async function handlePlayEpisode(episodeId) {
-    setState({ isLoading: true, videoSrc: null });
+async function handlePlayEpisode(animeId, episodeNumber) {
+    setState({ isLoading: true, videoSrc: null, error: null });
     try {
+        const episodeId = `${animeId}?ep=${episodeNumber}`;
         const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
         const serversData = await serversRes.json();
         
-        if (!serversData.servers || serversData.servers.length === 0) {
+        let availableServers = serversData.sub;
+        
+        if (!availableServers || availableServers.length === 0) {
             throw new Error('No servers found for this episode.');
         }
         
-        const firstServer = serversData.servers[0];
+        const firstServer = availableServers[0];
         
-        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${firstServer.episodeId}&server=${firstServer.serverName}`);
+        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${episodeId}&server=${firstServer.serverName}`);
         const srcData = await srcRes.json();
         
         if (!srcData.sources || srcData.sources.length === 0) {
