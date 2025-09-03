@@ -1,5 +1,5 @@
 const mainContent = document.getElementById('main-content');
-const API_BASE_URL = '/api/anime/animepahe';
+const API_BASE_URL = '/api/anime/zoro';
 
 let state = {
     view: 'home',
