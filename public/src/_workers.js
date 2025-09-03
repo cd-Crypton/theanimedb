@@ -1,63 +1,61 @@
+import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
+
+// The base URL of the public Consumet API
+const CONSUMET_API_BASE = 'https://api.consumet.org';
+
 export default {
   /**
    * Handles incoming requests.
-   * - If the URL starts with /api/, it proxies the request to the Consumet API.
-   * - Otherwise, it serves static assets (like index.html, css, js).
+   * Differentiates between API calls and static asset requests.
    * @param {Request} request The incoming request.
-   * @param {object} env Environment variables, including the ASSETS binding.
-   * @returns {Response} The response.
+   * @param {object} env Environment variables, including the ASSETS fetcher.
+   * @param {object} ctx Execution context.
+   * @returns {Response}
    */
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // Check if the request is for our API proxy
+    // --- API Proxy Logic ---
+    // If the path starts with /api/, proxy it to the Consumet API.
     if (url.pathname.startsWith('/api/')) {
-      return this.handleApiProxy(request);
+      // Create the new URL for the target API
+      const targetPath = url.pathname.replace('/api/', '/');
+      const targetUrl = CONSUMET_API_BASE + targetPath + url.search;
+
+      // Create a new request to forward
+      const apiRequest = new Request(targetUrl, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+      });
+
+      // Add headers to help with CORS and identify the request
+      apiRequest.headers.set('User-Agent', 'TheAnimeDB (via Cloudflare Worker)');
+      apiRequest.headers.set('Origin', new URL(CONSUMET_API_BASE).origin);
+
+      try {
+        const response = await fetch(apiRequest);
+        // Create a mutable copy to add CORS headers
+        const newResponse = new Response(response.body, response);
+        newResponse.headers.set('Access-Control-Allow-Origin', '*');
+        newResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        newResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+        return newResponse;
+      } catch (error) {
+        return new Response('Error forwarding API request: ' + error.message, { status: 500 });
+      }
     }
 
-    // Otherwise, serve the static assets from Cloudflare Pages
-    return env.ASSETS.fetch(request);
-  },
-
-  /**
-   * Proxies API requests to the public Consumet API.
-   * @param {Request} request The incoming API request.
-   */
-  async handleApiProxy(request) {
-    const CONSUMET_API_BASE = 'https://api.consumet.org';
-    const url = new URL(request.url);
-
-    // Create the target URL for the Consumet API
-    const targetPath = url.pathname.replace('/api/', '/');
-    const targetUrl = CONSUMET_API_BASE + targetPath + url.search;
-
-    // Create a new request to forward, copying method and headers
-    const apiRequest = new Request(targetUrl, {
-      method: request.method,
-      headers: request.headers,
-      body: request.body,
-    });
-    
-    // Set headers to ensure better compatibility
-    apiRequest.headers.set('User-Agent', 'AnimeStream-Educational-Project (via Cloudflare Worker)');
-    apiRequest.headers.set('Origin', new URL(CONSUMET_API_BASE).origin);
-
+    // --- Static Asset Logic ---
+    // If it's not an API call, serve the static files from your Pages deployment.
     try {
-      // Fetch the response from the Consumet API
-      const response = await fetch(apiRequest);
-      
-      // Create a mutable copy of the response to add CORS headers
-      const newResponse = new Response(response.body, response);
-
-      // Add CORS headers to allow your site to access the API response
-      newResponse.headers.set('Access-Control-Allow-Origin', '*');
-      newResponse.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-      newResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type');
-
-      return newResponse;
-
-    } catch (error) {
-      return new Response('Error forwarding API request: ' + error.message, { status: 500 });
+      // env.ASSETS is the binding to your static files defined in wrangler.toml
+      return await env.ASSETS.fetch(request);
+    } catch (e) {
+      // If the asset isn't found, you can return a 404 page or the main index.html
+      // for single-page application routing.
+      const notFoundResponse = await env.ASSETS.fetch(new Request(url.origin + '/index.html'));
+      return new Response(notFoundResponse.body, { ...notFoundResponse, status: 404 });
     }
   },
 };
