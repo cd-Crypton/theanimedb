@@ -1,10 +1,11 @@
-const CONSUMET_API_BASE = "https://test-anime-woad.vercel.app"; // your self-hosted consumet (Vercel)
+// Replace this with your Vercel instance base URL
+const VERCEL_API_BASE = 'https://test-anime-woad.vercel.app';
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // Handle CORS preflight
+    // --- Handle CORS preflight ---
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -16,44 +17,46 @@ export default {
       });
     }
 
-    // Proxy API calls -> routes: /api/meta/anilist/* and /api/anime/gogoanime/*
-    if (url.pathname.startsWith("/api/")) {
-      const targetPath = url.pathname.replace("/api", ""); 
-      const targetUrl = CONSUMET_API_BASE + targetPath + url.search;
+    // --- Proxy Animepahe API requests ---
+    if (url.pathname.startsWith('/api/anime/animepahe')) {
+      // Remove the Worker prefix
+      const path = url.pathname.replace('/api/anime/animepahe', '');
+      const targetUrl = VERCEL_API_BASE + '/anime/animepahe' + path + url.search;
 
       try {
-        const response = await fetch(targetUrl, {
+        const apiResponse = await fetch(targetUrl, {
           method: request.method,
           headers: {
-            "User-Agent": "TheAnimeDB (via Cloudflare Worker)",
+            "User-Agent": "TheAnimeDB Worker",
+            "Accept": "application/json"
           },
         });
 
-        return new Response(response.body, {
-          status: response.status,
+        const body = await apiResponse.text();
+
+        return new Response(body, {
+          status: apiResponse.status,
           headers: {
-            "Content-Type":
-              response.headers.get("Content-Type") || "application/json",
+            "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
           },
         });
-      } catch (error) {
-        return new Response(
-          JSON.stringify({ error: "Proxy error", details: error.message }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+      } catch (err) {
+        return new Response(JSON.stringify({ error: "Proxy failed", details: err.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
       }
     }
 
-    // Serve static assets (HTML, CSS, JS)
+    // --- Serve SPA static assets ---
     try {
       return await env.ASSETS.fetch(request);
     } catch {
-      // Fallback to index.html for SPA routing
-      const notFound = await env.ASSETS.fetch(
-        new Request(url.origin + "/index.html")
-      );
-      return new Response(notFound.body, { ...notFound, status: 404 });
+      const index = await env.ASSETS.fetch(new Request(url.origin + '/index.html'));
+      return new Response(index.body, { ...index, status: 404 });
     }
   },
 };
