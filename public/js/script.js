@@ -5,6 +5,7 @@ let state = {
     view: 'home', // 'home' or 'details'
     homeData: { trending: [], recent: [] },
     searchResults: null,
+    searchSuggestions: [], // New state variable for search suggestions
     lastSearchQuery: '',
     currentPage: 1,
     selectedAnimeId: null,
@@ -16,7 +17,7 @@ let state = {
     videoSrc: null,
     isLoading: true,
     error: null,
-    timeoutId: null, // New state variable to hold the timeout timer
+    timeoutId: null,
 };
 
 // --- API Base URL pointing to the new instance ---
@@ -49,6 +50,7 @@ const SearchBar = () => `
   <div class="relative">
     <input type="search" id="search-input" placeholder="Search for an anime..."
       class="w-full p-4 pr-12 text-lg text-white bg-gray-800 border-2 border-gray-700 rounded-full focus:outline-none focus:border-blue-500 transition-colors"
+      oninput="handleSearchInput(this.value)"
       ${state.isLoading ? 'disabled' : ''} />
     <button type="submit" ${state.isLoading ? 'disabled' : ''}
       class="absolute top-1/2 right-4 -translate-y-2/2 text-gray-400 hover:text-white disabled:opacity-50">
@@ -58,6 +60,15 @@ const SearchBar = () => `
       </svg>
     </button>
   </div>
+  ${state.searchSuggestions.length > 0 ? `
+    <ul id="search-suggestions" class="absolute w-full mt-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
+      ${state.searchSuggestions.map(s => `
+        <li onclick="selectSuggestion('${s.id}')" class="p-3 hover:bg-gray-700 cursor-pointer transition-colors">
+          <span class="font-bold">${s.title}</span>
+        </li>
+      `).join('')}
+    </ul>
+  ` : ''}
 </form>`;
 
 const AnimeCard = (anime) => {
@@ -290,7 +301,7 @@ async function fetchSearchResults(page = 1) {
     setState({ isLoading: true, error: null, currentPage: page, view: 'home' });
     startTimeout("Failed to fetch search results.");
     try {
-        const res = await fetch(`${API_BASE}search?q=${state.lastSearchQuery}&page=${page}`);
+        const res = await fetch(`${API_BASE}search/${state.lastSearchQuery}?page=${page}`);
         const data = await res.json();
         setState({ searchResults: { results: data.results, hasNextPage: data.hasNextPage }, isLoading: false });
     } catch (err) {
@@ -345,7 +356,7 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.sources[0].url;
-        const proxiedUrl = `https://cors.consumet.stream/proxy?url=${encodeURIComponent(sourceUrl)}`;
+        const proxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(sourceUrl)}`;
 
         setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
     } catch (err) {
@@ -356,6 +367,20 @@ async function handleServerSelection(episodeId, serverName, type) {
 
 
 // --- Event Handlers ---
+function handleSearchInput(query) {
+  if (query.trim() === '') {
+      setState({ searchSuggestions: [] });
+      return;
+  }
+  fetchSearchSuggestions(query);
+}
+
+function selectSuggestion(animeId) {
+  handleSelectAnime(animeId);
+  // Clear the search suggestions after selection
+  setState({ searchSuggestions: [] });
+}
+
 function handleSearchSubmit(e){
     e.preventDefault();
     const query = document.getElementById('search-input').value.trim();
@@ -372,13 +397,26 @@ function handlePageChange(dir){
     fetchSearchResults(newPage);
 }
 
+async function fetchSearchSuggestions(query) {
+  try {
+    const res = await fetch(`${API_BASE}search-suggestions/${query}`);
+    const data = await res.json();
+    if (data.results) {
+        setState({ searchSuggestions: data.results });
+    }
+  } catch(err) {
+    console.error("Failed to fetch search suggestions:", err);
+    // Do not set an error message in the UI for suggestions
+  }
+}
+
 function handleSelectAnime(animeId){
     state.selectedAnimeId = animeId;
     fetchAnimeDetails(animeId);
 }
 
 function handleGoHome(){
-    setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [] });
+    setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [], searchSuggestions: [] });
     fetchHomeData();
 }
 
