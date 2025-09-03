@@ -1,4 +1,4 @@
-const VERCEL_API_BASE = 'https://test-anime-woad.vercel.app'; // Your Vercel API
+const VERCEL_API_BASE = 'https://anime-api-three-sable.vercel.app'; // Your Vercel API
 
 export default {
   async fetch(request, env, ctx) {
@@ -17,9 +17,9 @@ export default {
     }
 
     // Proxy API requests
-    if (url.pathname.startsWith('/api/anime/anilist/')) {
+    if (url.pathname.startsWith('/api/anime/aniwatch')) {
       // Build the target Vercel API URL
-      const targetPath = url.pathname.replace('/api/anime/anilist', '/anime/anilist');
+      const targetPath = url.pathname.replace('/api/anime/aniwatch', '/aniwatch');
       const targetUrl = VERCEL_API_BASE + targetPath + url.search;
 
       try {

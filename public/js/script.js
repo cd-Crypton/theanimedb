@@ -14,7 +14,7 @@ let state = {
 };
 
 // --- API Base URL pointing to Worker proxy ---
-const API_BASE = '/api/anime/anilist';
+const API_BASE = '/api/anime/aniwatch';
 
 // --- Render Helpers ---
 const Spinner = () => `
@@ -45,18 +45,18 @@ const SearchBar = () => `
 </form>`;
 
 const AnimeCard = (anime) => {
-    const animeTitle = (anime.title?.romaji || anime.title).replace(/'/g, "\\'");
+    const animeTitle = anime.name.replace(/'/g, "\\'");
     const onclickAction = `handleSelectAnime('${anime.id}')`;
     return `
     <div onclick="${onclickAction}" class="bg-gray-800 rounded-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-transform duration-300">
       <div class="relative pb-[140%]">
-        <img src="${anime.image || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
+        <img src="${anime.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
              alt="${animeTitle}"
              class="absolute top-0 left-0 w-full h-full object-cover group-hover:opacity-75 transition-opacity"
              onerror="this.onerror=null; this.src='https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found';" />
       </div>
       <div class="p-3">
-        <h3 class="text-white font-bold text-sm truncate group-hover:text-blue-400 transition-colors">${anime.title?.romaji || anime.title}</h3>
+        <h3 class="text-white font-bold text-sm truncate group-hover:text-blue-400 transition-colors">${anime.name}</h3>
       </div>
     </div>`;
 };
@@ -121,7 +121,7 @@ async function fetchHomeData() {
     try {
         const [trendingRes, recentRes] = await Promise.all([
             fetch(`${API_BASE}/top-airing?page=1`),
-            fetch(`${API_BASE}/recent-episodes?page=1&type=1`)
+            fetch(`${API_BASE}/recent-episodes?page=1`)
         ]);
         const trending = (await trendingRes.json()).results || [];
         const recent = (await recentRes.json()).results || [];
@@ -136,7 +136,7 @@ async function fetchSearchResults(page=1) {
     if (!state.lastSearchQuery) return;
     setState({ isLoading:true, error:null, currentPage:page });
     try {
-        const res = await fetch(`${API_BASE}/${state.lastSearchQuery}?page=${page}`);
+        const res = await fetch(`${API_BASE}/search?keyword=${state.lastSearchQuery}&page=${page}`);
         const data = await res.json();
         setState({ searchResults:data, isLoading:false });
     } catch(err){
