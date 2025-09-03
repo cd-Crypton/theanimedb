@@ -10,8 +10,8 @@ let state = {
     selectedAnimeId: null,
     animeDetails: null,
     animeEpisodes: [],
-    selectedEpisodeId: null, // New state for selected episode
-    availableServers: [],   // New state to hold available servers
+    selectedEpisodeId: null,
+    availableServers: [],
     videoSrc: null,
     isLoading: true,
     error: null,
@@ -206,8 +206,9 @@ const renderDetails = () => {
         </div>
         
         <div class="mt-8">
-            <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
             ${videoPlayerHtml}
+            ${state.error ? ErrorDisplay(state.error) : ''}
+            <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
             ${episodeListHtml}
         </div>
     </div>
@@ -289,7 +290,7 @@ async function handleEpisodeSelection(episodeId) {
             throw new Error('No servers found for this episode.');
         }
         
-        setState({ availableServers, isLoading: false });
+        setState({ availableServers, isLoading: false, error: null });
 
     } catch (err) {
         console.error(err);
@@ -300,8 +301,14 @@ async function handleEpisodeSelection(episodeId) {
 async function handleServerSelection(episodeId, serverName) {
     setState({ isLoading: true, videoSrc: null, error: null });
     try {
-        // Fetch the streaming source using the selected server
-        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${episodeId}&server=${serverName}`);
+        const serversRes = await fetch(`${API_BASE}/servers?id=${episodeId}`);
+        const serversData = await serversRes.json();
+        
+        if (!serversData.sub || serversData.sub.length === 0) {
+            throw new Error('No servers found for this episode.');
+        }
+
+        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${serversData.episodeId}&server=${serverName}`);
         const srcData = await srcRes.json();
         
         if (!srcData.sources || srcData.sources.length === 0) {
@@ -310,7 +317,7 @@ async function handleServerSelection(episodeId, serverName) {
 
         const sourceUrl = srcData.sources[0].url;
 
-        setState({ videoSrc: sourceUrl, isLoading: false });
+        setState({ videoSrc: sourceUrl, isLoading: false, error: null });
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to load episode source: ${err.message}`, isLoading: false });
