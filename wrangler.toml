@@ -3,7 +3,7 @@ main = "public/src/_workers.js"
 compatibility_date = "2025-06-05"
 
 # This explicitly binds the 'dist' directory to the 'ASSETS' variable in your worker
-assets = { directory = "./dist" }
+assets = { directory = "./public" }
 
 [vars]
 ENVIRONMENT = "production"
