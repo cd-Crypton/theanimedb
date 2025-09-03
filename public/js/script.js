@@ -20,9 +20,10 @@ let state = {
 };
 
 // --- API Base URL pointing to Worker proxy ---
-const API_BASE = '/api/anime/aniwatch';
-const ZORO_API_BASE = 'https://yumaapi.vercel.app/anime/zoro';
+const API_BASE = 'https://yumaapi.vercel.app/anime/zoro';
 const CORS_PROXY_URL = 'https://cors.consumet.stream/';
+
+const SERVERS = ['vidcloud', 'megacloud'];
 
 // --- Render Helpers ---
 const Spinner = () => `
@@ -60,18 +61,18 @@ const SearchBar = () => `
 </form>`;
 
 const AnimeCard = (anime) => {
-    const animeTitle = (anime.name).replace(/'/g, "\\'");
+    const animeTitle = (anime.title).replace(/'/g, "\\'");
     const onclickAction = `handleSelectAnime('${anime.id}')`;
     return `
     <div onclick="${onclickAction}" class="bg-gray-800 rounded-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-transform duration-300">
       <div class="relative pb-[140%]">
-        <img src="${anime.img || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
+        <img src="${anime.image || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
              alt="${animeTitle}"
              class="absolute top-0 left-0 w-full h-full object-cover group-hover:opacity-75 transition-opacity"
              onerror="this.onerror=null; this.src='https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found';" />
       </div>
       <div class="p-3">
-        <h3 class="text-white font-bold text-sm truncate group-hover:text-blue-400 transition-colors">${anime.name}</h3>
+        <h3 class="text-white font-bold text-sm truncate group-hover:text-blue-400 transition-colors">${anime.title}</h3>
       </div>
     </div>`;
 };
@@ -130,9 +131,8 @@ const renderDetails = () => {
         return;
     }
 
-    const info = state.animeDetails.info;
-    const moreInfo = state.animeDetails.moreInfo;
-    const genres = moreInfo.Genres ? moreInfo.Genres.join(', ') : 'N/A';
+    const details = state.animeDetails;
+    const genres = details.genres ? details.genres.join(', ') : 'N/A';
 
     let episodeListHtml = '';
     if (state.animeEpisodes && state.animeEpisodes.length > 0) {
@@ -140,9 +140,9 @@ const renderDetails = () => {
             <h3 class="text-xl font-bold text-white mb-2">Episode List</h3>
             <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto max-h-96 custom-scrollbar">
                 ${state.animeEpisodes.map(ep => `
-                    <button onclick="handleEpisodeSelection('${ep.episodeId}')"
+                    <button onclick="handleEpisodeSelection('${ep.id}')"
                             class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
-                        ${ep.episodeNo}
+                        ${ep.number}
                     </button>
                 `).join('')}
             </div>
@@ -158,32 +158,28 @@ const renderDetails = () => {
                 <video controls class="w-full h-auto" src="${state.videoSrc}" type="video/mp4"></video>
             </div>
         `;
-    } else if (state.availableSubServers.length > 0 || state.availableDubServers.length > 0) {
-        const subServerButtonsHtml = state.availableSubServers.map(server => `
-            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server.serverName}', 'sub')" 
+    } else if (state.selectedEpisodeId) {
+        const subServerButtonsHtml = SERVERS.map(server => `
+            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'sub')" 
                     class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                ${server.serverName}
+                ${server}
             </button>
         `).join('');
 
-        const dubServerButtonsHtml = state.availableDubServers.map(server => `
-            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server.serverName}', 'dub')" 
+        const dubServerButtonsHtml = SERVERS.map(server => `
+            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'dub')" 
                     class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                ${server.serverName}
+                ${server}
             </button>
         `).join('');
 
         videoPlayerHtml = `
             <div class="mb-8">
                 <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
-                ${state.availableSubServers.length > 0 ? `
-                    <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
-                    <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
-                ` : ''}
-                ${state.availableDubServers.length > 0 ? `
-                    <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
-                    <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
-                ` : ''}
+                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
+                <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
+                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
+                <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
             </div>
         `;
     }
@@ -198,25 +194,25 @@ const renderDetails = () => {
         </button>
         <div class="flex flex-col md:flex-row gap-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
             <div class="md:flex-shrink-0">
-                <img src="${info.img || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
-                     alt="${info.name}"
+                <img src="${details.image || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
+                     alt="${details.title}"
                      class="w-full md:w-64 h-auto rounded-lg shadow-md" />
             </div>
             <div class="flex-grow">
-                <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${info.name}</h1>
-                <p class="text-gray-400 mb-4">${moreInfo["Japanese:"] || ''}</p>
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${details.title}</h1>
+                <p class="text-gray-400 mb-4">${details.japaneseTitle || ''}</p>
                 <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
                     <div>
                         <p class="font-semibold text-white">Released:</p>
-                        <p>${moreInfo["Aired:"] || 'N/A'}</p>
+                        <p>${details.releaseDate || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Status:</p>
-                        <p>${moreInfo.Status || 'N/A'}</p>
+                        <p>${details.status || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Type:</p>
-                        <p>${info.category || 'N/A'}</p>
+                        <p>${details.type || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Genres:</p>
@@ -225,7 +221,7 @@ const renderDetails = () => {
                 </div>
                 <p class="text-gray-300 mb-4">
                     <span class="font-semibold text-white">Summary:</span>
-                    ${info.description || 'No summary available.'}
+                    ${details.description || 'No summary available.'}
                 </p>
             </div>
         </div>
@@ -274,14 +270,14 @@ async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
     startTimeout("Could not load home anime data.");
     try {
-        const res = await fetch(`${API_BASE}`);
+        const res = await fetch(`${API_BASE}/top-airing`);
         const data = await res.json();
-        const trending = data.trendingAnimes || [];
-        const recent = data.latestEpisodes || [];
+        const trending = data.results || [];
+        const recent = []; // This API doesn't have a direct 'recent' endpoint
         setState({ homeData: { trending, recent } });
     } catch (err) {
         console.error(err);
-        setState({ error: 'Could not load home anime data.' });
+        setState({ error: 'Could not load home anime data.', isLoading: false });
     } finally {
         setState({ isLoading: false });
     }
@@ -292,9 +288,9 @@ async function fetchSearchResults(page = 1) {
     setState({ isLoading: true, error: null, currentPage: page, view: 'home' });
     startTimeout("Failed to fetch search results.");
     try {
-        const res = await fetch(`${API_BASE}/search?keyword=${state.lastSearchQuery}&page=${page}`);
+        const res = await fetch(`${API_BASE}/search?q=${state.lastSearchQuery}&page=${page}`);
         const data = await res.json();
-        setState({ searchResults: { results: data.animes }, isLoading: false });
+        setState({ searchResults: { results: data.results, hasNextPage: data.hasNextPage }, isLoading: false });
     } catch (err) {
         console.error(err);
         setState({ error: 'Failed to fetch search results.', isLoading: false });
@@ -307,39 +303,20 @@ async function fetchAnimeDetails(animeId) {
     setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, availableSubServers: [], availableDubServers: [], selectedEpisodeId: null });
     startTimeout("Failed to fetch anime details.");
     try {
-        const [detailsRes, episodesRes] = await Promise.all([
-            fetch(`${API_BASE}/anime/${animeId}`),
-            fetch(`${API_BASE}/episodes/${animeId}`)
-        ]);
-
+        const detailsRes = await fetch(`${API_BASE}/info/${animeId}`);
         const detailsData = await detailsRes.json();
-        const episodesData = await episodesRes.json();
 
-        // Check if episodes are in the correct format, otherwise throw an error
-        if (!episodesData.episodes || !Array.isArray(episodesData.episodes)) {
-            throw new Error("Invalid episode data from Aniwatch API.");
+        // The new API provides episodes directly in the details response
+        if (!detailsData.episodes || !Array.isArray(detailsData.episodes)) {
+            throw new Error("Invalid episode data from API.");
         }
 
-        // Use Zoro API for server list
-        let availableSubServers = [];
-        let availableDubServers = [];
-        if (episodesData.episodes.length > 0) {
-            const firstEpisodeId = episodesData.episodes[0].episodeId;
-            const zoroEpisodeId = firstEpisodeId.replace('?ep=', '$episode$');
-
-            const zoroServersRes = await fetch(`${ZORO_API_BASE}/watch?episodeId=${zoroEpisodeId}`);
-            const zoroServersData = await zoroServersRes.json();
-
-            if (zoroServersData.sources && zoroServersData.sources.length > 0) {
-                // The Zoro API returns a single list of sources. For simplicity, we'll
-                // map this to a single server option.
-                availableSubServers.push({ serverName: 'vidcloud', serverId: 1 });
-            }
-        }
+        const availableSubServers = (detailsData.sub || []).length > 0 ? SERVERS : [];
+        const availableDubServers = (detailsData.dub || []).length > 0 ? SERVERS : [];
 
         setState({
             animeDetails: detailsData,
-            animeEpisodes: episodesData.episodes,
+            animeEpisodes: detailsData.episodes,
             availableSubServers: availableSubServers,
             availableDubServers: availableDubServers,
             isLoading: false
@@ -351,56 +328,25 @@ async function fetchAnimeDetails(animeId) {
 }
 
 async function handleEpisodeSelection(episodeId) {
-    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, availableSubServers: [], availableDubServers: [], error: null });
-    startTimeout("Failed to load servers for this episode.");
-    try {
-        const zoroEpisodeId = episodeId.replace('?ep=', '$episode$');
-
-        const zoroServersRes = await fetch(`${ZORO_API_BASE}/watch?episodeId=${zoroEpisodeId}`);
-        const zoroServersData = await zoroServersRes.json();
-
-        let availableSubServers = [];
-        if (zoroServersData.sources && zoroServersData.sources.length > 0) {
-            availableSubServers.push({ serverName: 'vidcloud', serverId: 1 });
-        }
-
-        if (availableSubServers.length === 0) {
-            throw new Error('No streaming servers found for this episode from Zoro.');
-        }
-
-        setState({
-            availableSubServers: availableSubServers,
-            availableDubServers: [],
-            isLoading: false,
-            error: null
-        });
-
-    } catch (err) {
-        console.error(err);
-        setState({ error: `Failed to load servers: ${err.message}`, isLoading: false });
-    }
+    setState({ isLoading: false, selectedEpisodeId: episodeId, videoSrc: null, error: null });
 }
 
-async function handleServerSelection(episodeId, serverName) {
+async function handleServerSelection(episodeId, serverName, type) {
     setState({ isLoading: true, videoSrc: null, error: null });
     startTimeout(`Failed to load streaming source from ${serverName}.`);
     try {
-        const zoroEpisodeId = episodeId.replace('?ep=', '$episode$');
-        
-        const zoroUrl = `${ZORO_API_BASE}/watch?episodeId=${zoroEpisodeId}&server=${serverName}`;
-        
-        const zoroRes = await fetch(zoroUrl);
-        const zoroData = await zoroRes.json();
-        
-        if (!zoroData.sources || zoroData.sources.length === 0) {
-            throw new Error('Zoro API failed to provide sources.');
+        const watchUrl = `${API_BASE}/watch?episodeId=${episodeId}&server=${serverName}&type=${type}`;
+        const watchRes = await fetch(watchUrl);
+        const watchData = await watchRes.json();
+
+        if (!watchData.sources || watchData.sources.length === 0) {
+            throw new Error('Streaming sources not found.');
         }
 
-        const finalZoroSourceUrl = zoroData.sources[0].url;
-        
-        const finalProxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(finalZoroSourceUrl)}`;
+        const sourceUrl = watchData.sources[0].url;
+        const proxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(sourceUrl)}`;
 
-        setState({ videoSrc: finalProxiedUrl, isLoading: false, error: null });
+        setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
