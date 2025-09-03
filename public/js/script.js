@@ -7,8 +7,8 @@ let state = {
     searchResults: null,
     lastSearchQuery: '',
     currentPage: 1,
-    selectedAnimeId: null,
-    animeDetails: null,
+    selectedAnimeId: null, // Tracks the ID of the currently selected anime
+    animeDetails: null,    // Stores the fetched details for a selected anime
     isLoading: true,
     error: null,
 };
@@ -110,18 +110,79 @@ const renderHome = () => {
     if (searchForm) searchForm.addEventListener('submit', handleSearchSubmit);
 };
 
+const renderDetails = () => {
+    if (state.isLoading || !state.animeDetails) {
+        mainContent.innerHTML = Spinner();
+        return;
+    }
+
+    const details = state.animeDetails;
+
+    // Join genres into a single string
+    const genres = details.genres ? details.genres.join(', ') : 'N/A';
+
+    const content = `
+    <div class="max-w-4xl mx-auto">
+        <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+            Back to Home
+        </button>
+        <div class="flex flex-col md:flex-row gap-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
+            <div class="md:flex-shrink-0">
+                <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
+                     alt="${details.name}"
+                     class="w-full md:w-64 h-auto rounded-lg shadow-md" />
+            </div>
+            <div class="flex-grow">
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${details.name}</h1>
+                <p class="text-gray-400 mb-4">${details.otherName || ''}</p>
+                <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
+                    <div>
+                        <p class="font-semibold text-white">Released:</p>
+                        <p>${details.released || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-white">Status:</p>
+                        <p>${details.status || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-white">Type:</p>
+                        <p>${details.type || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-white">Genres:</p>
+                        <p>${genres}</p>
+                    </div>
+                </div>
+                <p class="text-gray-300 mb-4">
+                    <span class="font-semibold text-white">Summary:</span>
+                    ${details.description || 'No summary available.'}
+                </p>
+                </div>
+        </div>
+    </div>
+    `;
+
+    mainContent.innerHTML = content;
+};
+
 // --- App Logic ---
 const setState = (newState) => {
     state = { ...state, ...newState };
-    renderHome();
+    if (state.view === 'home') {
+        renderHome();
+    } else if (state.view === 'details') {
+        renderDetails();
+    }
 };
 
 async function fetchHomeData() {
-    setState({ isLoading:true, error:null });
+    setState({ isLoading:true, error:null, view:'home' });
     try {
         const res = await fetch(`${API_BASE}`);
         const data = await res.json();
-        // The API provides trending and recent data in different keys
         const trending = data.trendingAnimes || [];
         const recent = data.latestEpisodes || [];
         setState({ homeData: { trending, recent } });
@@ -129,23 +190,32 @@ async function fetchHomeData() {
         console.error(err);
         setState({ error: 'Could not load home anime data.' });
     } finally {
-        // This block will always run after try/catch, ensuring loading state is reset
         setState({ isLoading:false });
     }
 }
 
 async function fetchSearchResults(page=1) {
     if (!state.lastSearchQuery) return;
-    setState({ isLoading:true, error:null, currentPage:page });
+    setState({ isLoading:true, error:null, currentPage:page, view:'home' });
     try {
-        // The API expects a 'keyword' parameter for search queries
         const res = await fetch(`${API_BASE}/search?keyword=${state.lastSearchQuery}&page=${page}`);
         const data = await res.json();
-        // The search results are under the 'animes' key
         setState({ searchResults: { results: data.animes }, isLoading:false });
     } catch(err){
         console.error(err);
         setState({ error:'Failed to fetch search results.', isLoading:false });
+    }
+}
+
+async function fetchAnimeDetails(animeId) {
+    setState({ isLoading:true, error:null, view:'details', animeDetails: null });
+    try {
+        const res = await fetch(`${API_BASE}/info?id=${animeId}`);
+        const data = await res.json();
+        setState({ animeDetails: data, isLoading: false });
+    } catch (err) {
+        console.error(err);
+        setState({ error: 'Failed to fetch anime details.', isLoading: false });
     }
 }
 
@@ -167,7 +237,13 @@ function handlePageChange(dir){
 }
 
 function handleSelectAnime(animeId){
-    alert(`Selected anime ID: ${animeId}\nStreaming/playback not supported, metadata only.`);
+    state.selectedAnimeId = animeId;
+    fetchAnimeDetails(animeId);
+}
+
+function handleGoHome(){
+    setState({ view:'home', searchResults: null, lastSearchQuery: '' });
+    fetchHomeData();
 }
 
 // --- Init ---
