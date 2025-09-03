@@ -65,23 +65,35 @@ async function renderTrending() {
 }
 
 // Render anime details & episodes (from Gogoanime)
-// Render anime details & episodes using Gogoanime
 async function renderAnimeFromAnilist(anilistAnime) {
-    // Step 1: Search gogoanime by title
-    const searchRes = await fetch(`${GOGO_API_BASE}/${encodeURIComponent(anilistAnime.title.romaji)}`);
-    const searchData = await searchRes.json();
+    const titlesToTry = [
+        anilistAnime.title.romaji,
+        anilistAnime.title.english,
+        anilistAnime.title.native
+    ].filter(Boolean); // remove null/undefined
 
-    if (!searchData.results || searchData.results.length === 0) {
+    let gogoAnime = null;
+
+    for (const title of titlesToTry) {
+        const searchRes = await fetch(`${GOGO_API_BASE}/${encodeURIComponent(title)}`);
+        const searchData = await searchRes.json();
+
+        if (searchData.results && searchData.results.length > 0) {
+            gogoAnime = searchData.results[0];
+            break;
+        }
+    }
+
+    if (!gogoAnime) {
         document.getElementById('main-content').innerHTML =
             `<p class="text-red-500">No episodes found for ${anilistAnime.title.romaji}</p>`;
         return;
     }
 
-    // Step 2: Use first Gogoanime result
-    const gogoAnime = searchData.results[0];
+    // Fetch episode info
     const anime = await fetchAnimeInfo(gogoAnime.id);
 
-    // Step 3: Render episodes
+    // Render episodes
     const main = document.getElementById('main-content');
     main.innerHTML = `
         <h2 class="text-2xl font-bold mb-4">${anime.title}</h2>
@@ -96,7 +108,7 @@ async function renderAnimeFromAnilist(anilistAnime) {
         <div id="video-player" class="mt-6"></div>
     `;
 
-    // Step 4: Attach episode click handlers
+    // Attach episode click handlers
     document.querySelectorAll('.episode-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const episodeId = btn.dataset.id;
