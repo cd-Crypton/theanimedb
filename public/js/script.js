@@ -358,19 +358,14 @@ async function handleServerSelection(episodeId, serverName) {
     } catch (err) {
         console.error("AniWatch API failed, attempting fallback:", err);
 
-        // Fallback to Gogoanime API with CORS proxy
+        // Fallback to Gogoanime API without a proxy
         try {
             const parts = episodeId.split("?ep=");
             const animeSlug = parts[0];
             const episodeNumber = state.animeEpisodes.find(ep => ep.episodeId === episodeId).episodeNo;
             
-            // Build the full Gogoanime API URL first
-            const gogoanimeApiUrl = `${GOGOANIME_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}`;
-            
-            // Proxy the entire API URL using the `proxy?url=` format
-            const proxiedGogoanimeApiUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(gogoanimeApiUrl)}`;
-            
-            const gogoanimeSourceRes = await fetch(proxiedGogoanimeApiUrl);
+            // Unproxied API call
+            const gogoanimeSourceRes = await fetch(`${GOGOANIME_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}`);
             const gogoanimeSourceData = await gogoanimeSourceRes.json();
             
             if (!gogoanimeSourceData.sources || gogoanimeSourceData.sources.length === 0) {
@@ -379,10 +374,8 @@ async function handleServerSelection(episodeId, serverName) {
 
             const finalGogoanimeSourceUrl = gogoanimeSourceData.sources[0].url;
             
-            // Proxy the final video source as well
-            const finalProxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(finalGogoanimeSourceUrl)}`;
-
-            setState({ videoSrc: finalProxiedUrl, isLoading: false, error: null });
+            // Unproxied video URL
+            setState({ videoSrc: finalGogoanimeSourceUrl, isLoading: false, error: null });
         } catch (gogoanimeErr) {
             console.error(gogoanimeErr);
             setState({ error: `Fallback failed to load episode: ${gogoanimeErr.message}`, isLoading: false });
