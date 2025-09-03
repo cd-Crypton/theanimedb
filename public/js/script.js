@@ -14,8 +14,8 @@ let state = {
     error: null,
 };
 
-// --- API Base URL (Now exclusively Gogoanime, pointing to the public API) ---
-const API_BASE_URL = 'https://api.consumet.org/anime/gogoanime';
+// --- API Base URL (Pointing to the Cloudflare Worker proxy) ---
+const API_BASE_URL = '/api/anime/gogoanime';
 
 // --- Render Functions (generating HTML strings) ---
 
