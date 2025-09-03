@@ -1,77 +1,11 @@
-/* Custom scrollbar for episode lists */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: #1f2937; /* bg-gray-800 */
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #4b5563; /* bg-gray-600 */
-    border-radius: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #6b7280; /* bg-gray-500 */
-}
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
 
-/* Spinner animation */
-.spinner {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    width: 100%;
-    padding: 4rem 0;
-}
+/* Anime card hover effect */
+.anime-card:hover { transform: translateY(-4px); transition: transform 0.3s; }
 
-.spinner div {
-    border-top: 2px solid #3b82f6; /* Tailwind blue-500 */
-    border-bottom: 2px solid #3b82f6;
-    border-radius: 50%;
-    width: 4rem;
-    height: 4rem;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Video container fallback */
-.video-container {
-    position: relative;
-    width: 100%;
-    padding-top: 56.25%; /* 16:9 aspect ratio */
-    background: black;
-    border-radius: 0.5rem;
-    overflow: hidden;
-}
-
-.video-container video {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 0.5rem;
-}
-
-/* Error message styling */
-.error-message {
-    text-align: center;
-    padding: 1rem;
-    background: rgba(220,38,38,0.3); /* red-700/50 */
-    color: #f87171; /* red-400 */
-    border-radius: 0.5rem;
-    max-width: 40rem;
-    margin: 1rem auto;
-    font-weight: bold;
-}
-
-/* Fallback image for cards */
-.img-fallback {
-    object-fit: cover;
-    background-color: #1f2937; /* bg-gray-800 */
-    width: 100%;
-    height: 100%;
-}
+/* Button disabled state */
+button:disabled { opacity: 0.5; cursor: not-allowed; }
