@@ -53,7 +53,7 @@ async function renderTrending() {
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             ${data.results.map(anime => `
                 <div class="bg-gray-800 rounded-lg shadow hover:shadow-lg transition cursor-pointer"
-                     onclick="renderAnime('${anime.id}')">
+                     onclick='renderAnimeFromAnilist(${JSON.stringify(anime)})'>
                     <img src="${anime.image}" alt="${anime.title.romaji}" class="w-full h-48 object-cover rounded-t-lg">
                     <div class="p-2">
                         <h3 class="text-sm font-semibold truncate">${anime.title.romaji}</h3>
@@ -65,10 +65,24 @@ async function renderTrending() {
 }
 
 // Render anime details & episodes (from Gogoanime)
-async function renderAnime(animeId) {
-    const anime = await fetchAnimeInfo(animeId);
-    const main = document.getElementById('main-content');
+// Render anime details & episodes using Gogoanime
+async function renderAnimeFromAnilist(anilistAnime) {
+    // Step 1: Search gogoanime by title
+    const searchRes = await fetch(`${GOGO_API_BASE}/${encodeURIComponent(anilistAnime.title.romaji)}`);
+    const searchData = await searchRes.json();
 
+    if (!searchData.results || searchData.results.length === 0) {
+        document.getElementById('main-content').innerHTML =
+            `<p class="text-red-500">No episodes found for ${anilistAnime.title.romaji}</p>`;
+        return;
+    }
+
+    // Step 2: Use first Gogoanime result
+    const gogoAnime = searchData.results[0];
+    const anime = await fetchAnimeInfo(gogoAnime.id);
+
+    // Step 3: Render episodes
+    const main = document.getElementById('main-content');
     main.innerHTML = `
         <h2 class="text-2xl font-bold mb-4">${anime.title}</h2>
         <div class="grid gap-2">
@@ -82,7 +96,7 @@ async function renderAnime(animeId) {
         <div id="video-player" class="mt-6"></div>
     `;
 
-    // Attach event listeners for episodes
+    // Step 4: Attach episode click handlers
     document.querySelectorAll('.episode-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const episodeId = btn.dataset.id;
