@@ -15,7 +15,7 @@ let state = {
 };
 
 // --- API Base URL (Pointing to the Cloudflare Worker proxy) ---
-const API_BASE_URL = '/api/anime/gogoanime';
+const API_BASE_URL = '/api/meta/anilist';
 
 // --- Render Functions (generating HTML strings) ---
 
@@ -81,7 +81,7 @@ const AnimeCard = (anime) => {
 const renderPagination = () => {
     if (!state.searchResults) return '';
     
-    // Gogoanime provides a hasNextPage flag, which is more reliable.
+    // AniList provides a hasNextPage flag, which is more reliable.
     const hasNextPage = state.searchResults.hasNextPage;
 
     return `
@@ -229,7 +229,7 @@ const renderVideoPlayer = (episodeId) => {
     const video = document.getElementById('video-player');
     const loader = document.getElementById('video-loader');
     
-    fetch(`${API_BASE_URL}/watch/${episodeId}?server=gogoanime`)
+    fetch(`${API_BASE_URL}/watch/${episodeId}?server=AniList`)
         .then(res => {
             if (!res.ok) throw new Error(`Failed to fetch stream data. Status: ${res.status}`);
             return res.json();
