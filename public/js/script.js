@@ -21,8 +21,7 @@ let state = {
 
 // --- API Base URL pointing to the new instance ---
 const API_BASE = 'https://yumaapi.vercel.app/';
-
-const SERVERS = ['vidcloud', 'megacloud'];
+const CORS_PROXY_URL = 'https://cors.consumet.stream/';
 
 // --- Render Helpers ---
 const Spinner = () => `
@@ -158,14 +157,14 @@ const renderDetails = () => {
             </div>
         `;
     } else if (state.selectedEpisodeId) {
-        const subServerButtonsHtml = SERVERS.map(server => `
+        const subServerButtonsHtml = state.availableSubServers.map(server => `
             <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'sub')" 
                     class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
                 ${server}
             </button>
         `).join('');
 
-        const dubServerButtonsHtml = SERVERS.map(server => `
+        const dubServerButtonsHtml = state.availableDubServers.map(server => `
             <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'dub')" 
                     class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
                 ${server}
@@ -175,10 +174,14 @@ const renderDetails = () => {
         videoPlayerHtml = `
             <div class="mb-8">
                 <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
-                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
-                <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
-                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
-                <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
+                ${state.availableSubServers.length > 0 ? `
+                    <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
+                    <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
+                ` : ''}
+                ${state.availableDubServers.length > 0 ? `
+                    <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
+                    <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
+                ` : ''}
             </div>
         `;
     }
@@ -299,7 +302,7 @@ async function fetchSearchResults(page = 1) {
 }
 
 async function fetchAnimeDetails(animeId) {
-    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, availableSubServers: [], availableDubServers: [], selectedEpisodeId: null });
+    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [] });
     startTimeout("Failed to fetch anime details.");
     try {
         const detailsRes = await fetch(`${API_BASE}info/${animeId}`);
@@ -309,14 +312,9 @@ async function fetchAnimeDetails(animeId) {
             throw new Error("Invalid episode data from API.");
         }
 
-        const availableSubServers = (detailsData.sub) ? SERVERS : [];
-        const availableDubServers = (detailsData.dub) ? SERVERS : [];
-
         setState({
             animeDetails: detailsData,
             animeEpisodes: detailsData.episodes,
-            availableSubServers: availableSubServers,
-            availableDubServers: availableDubServers,
             isLoading: false
         });
     } catch (err) {
@@ -326,7 +324,36 @@ async function fetchAnimeDetails(animeId) {
 }
 
 async function handleEpisodeSelection(episodeId) {
-    setState({ isLoading: false, selectedEpisodeId: episodeId, videoSrc: null, error: null });
+    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, error: null, availableSubServers: [], availableDubServers: [] });
+    startTimeout("Failed to load servers for this episode.");
+    try {
+        const serversRes = await fetch(`${API_BASE}watch?episodeId=${episodeId}&server=vidcloud`);
+        const serversData = await serversRes.json();
+
+        let availableSubServers = [];
+        if (serversData.sources && serversData.sources.length > 0) {
+            availableSubServers = ['vidcloud', 'megacloud'];
+        }
+
+        let availableDubServers = [];
+        if (serversData.sources_dub && serversData.sources_dub.length > 0) {
+            availableDubServers = ['vidcloud', 'megacloud'];
+        }
+
+        if (availableSubServers.length === 0 && availableDubServers.length === 0) {
+            throw new Error('No streaming servers found for this episode.');
+        }
+
+        setState({
+            availableSubServers: availableSubServers,
+            availableDubServers: availableDubServers,
+            isLoading: false,
+            error: null
+        });
+    } catch (err) {
+        console.error(err);
+        setState({ error: `Failed to load servers: ${err.message}`, isLoading: false });
+    }
 }
 
 async function handleServerSelection(episodeId, serverName, type) {
@@ -342,7 +369,7 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.sources[0].url;
-        const proxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(sourceUrl)}`;
+        const proxiedUrl = `https://cors.consumet.stream/proxy?url=${encodeURIComponent(sourceUrl)}`;
 
         setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
     } catch (err) {
@@ -350,7 +377,6 @@ async function handleServerSelection(episodeId, serverName, type) {
         setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
     }
 }
-
 
 // --- Event Handlers ---
 function handleSearchSubmit(e){
