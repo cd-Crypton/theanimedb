@@ -18,37 +18,35 @@ export default {
 
     // Proxy API calls
     if (url.pathname.startsWith('/api/')) {
-      const targetPath = url.pathname.replace('/api/', '/');
-      const targetUrl = CONSUMET_API_BASE + targetPath + url.search;
+    const targetPath = url.pathname.substring(5); // remove "/api/"
+    const targetUrl = `${CONSUMET_API_BASE}${targetPath}${url.search}`;
 
-      try {
-        const response = await fetch(targetUrl, {
-          method: "GET",
-          headers: {
-            "User-Agent": "TheAnimeDB (via Cloudflare Worker)",
-          },
-        });
+    try {
+      const response = await fetch(targetUrl, {
+        method: "GET",
+        headers: {
+          "User-Agent": "TheAnimeDB (via Cloudflare Worker)",
+        },
+      });
 
-        // 🔹 DEBUG LOGGING
-        const text = await response.text();
-        console.log(">>> Proxy Target:", targetUrl);
-        console.log(">>> Proxy Response (first 300 chars):", text.slice(0, 300));
+      const text = await response.text();
+      console.log(">>> Proxy Target:", targetUrl);
+      console.log(">>> Proxy Response (first 300 chars):", text.slice(0, 300));
 
-        // 🔹 Return the actual response to the browser
-        return new Response(text, {
-          status: response.status,
-          headers: {
-            "Content-Type": response.headers.get("Content-Type") || "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        });
-      } catch (error) {
-        return new Response(
-          JSON.stringify({ error: "Proxy error", details: error.message }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
-      }
+      return new Response(text, {
+        status: response.status,
+        headers: {
+          "Content-Type": response.headers.get("Content-Type") || "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: "Proxy error", details: error.message }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
+  }
 
     // Serve static assets
     try {
