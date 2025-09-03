@@ -1,10 +1,10 @@
-const ANIMEPAHE_API_BASE = 'https://api.consumet.org/anime/animepahe';
+const ANIMEPAHE_BASE = 'https://animepahe.com/api';
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // --- Handle CORS Preflight ---
+    // Handle CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -16,39 +16,43 @@ export default {
       });
     }
 
-    // --- Proxy API Calls ---
+    // Proxy Animepahe API
     if (url.pathname.startsWith('/api/anime/animepahe')) {
-      const targetPath = url.pathname.replace('/api/anime/animepahe', '');
-      const targetUrl = ANIMEPAHE_API_BASE + targetPath + url.search;
+      const path = url.pathname.replace('/api/anime/animepahe', '');
+      const targetUrl = ANIMEPAHE_BASE + path + url.search;
 
       try {
-        const apiResponse = await fetch(targetUrl, {
-          method: request.method,
+        const res = await fetch(targetUrl, {
+          method: 'GET',
           headers: {
-            "User-Agent": "TheAnimeDB (via Cloudflare Worker)",
+            'User-Agent': 'TheAnimeDB Cloudflare Worker',
+            'Accept': 'application/json'
           },
         });
 
-        // Copy response and add CORS headers
-        const response = new Response(apiResponse.body, apiResponse);
-        response.headers.set('Access-Control-Allow-Origin', '*');
-        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+        const body = await res.text();
 
-        return response;
+        return new Response(body, {
+          status: res.status,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          },
+        });
       } catch (err) {
-        return new Response(JSON.stringify({ error: 'Proxy error', details: err.message }), {
+        return new Response(JSON.stringify({ error: 'Proxy failed', details: err.message }), {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         });
       }
     }
 
-    // --- Serve Static Assets ---
+    // Serve SPA static assets
     try {
       return await env.ASSETS.fetch(request);
     } catch {
-      // fallback to index.html for SPA routing
       const index = await env.ASSETS.fetch(new Request(url.origin + '/index.html'));
       return new Response(index.body, { ...index, status: 404 });
     }
