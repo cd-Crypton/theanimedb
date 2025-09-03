@@ -271,7 +271,8 @@ async function handlePlayEpisode(episodeId) {
         
         const firstServer = availableServers[0];
         
-        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${firstServer.episodeId}&server=${firstServer.serverName}`);
+        // Corrected API call to use the correct episodeId from the serversData object
+        const srcRes = await fetch(`${API_BASE}/episode-srcs?id=${serversData.episodeId}&server=${firstServer.serverName}`);
         const srcData = await srcRes.json();
         
         if (!srcData.sources || srcData.sources.length === 0) {
