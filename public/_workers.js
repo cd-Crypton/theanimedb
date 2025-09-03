@@ -1,4 +1,4 @@
-const CONSUMET_API_BASE = 'https://test-anime-woad.vercel.app';
+const CONSUMET_API_BASE = "https://test-anime-woad.vercel.app"; // your self-hosted consumet (Vercel)
 
 export default {
   async fetch(request, env, ctx) {
@@ -16,24 +16,24 @@ export default {
       });
     }
 
-    // Proxy API calls
-    if (url.pathname.startsWith('/api/')) {
-      const targetPath = url.pathname.replace('/api/', '/');
-      const targetUrl = `${CONSUMET_API_BASE}${targetPath}${url.search}`;
+    // Proxy API calls -> routes: /api/meta/anilist/* and /api/anime/gogoanime/*
+    if (url.pathname.startsWith("/api/")) {
+      const targetPath = url.pathname.replace("/api", ""); 
+      const targetUrl = CONSUMET_API_BASE + targetPath + url.search;
 
       try {
         const response = await fetch(targetUrl, {
-          method: "GET",
+          method: request.method,
           headers: {
             "User-Agent": "TheAnimeDB (via Cloudflare Worker)",
           },
         });
 
-        const text = await response.text();
-        return new Response(text, {
+        return new Response(response.body, {
           status: response.status,
           headers: {
-            "Content-Type": response.headers.get("Content-Type") || "application/json",
+            "Content-Type":
+              response.headers.get("Content-Type") || "application/json",
             "Access-Control-Allow-Origin": "*",
           },
         });
@@ -45,11 +45,14 @@ export default {
       }
     }
 
-    // Serve static assets
+    // Serve static assets (HTML, CSS, JS)
     try {
       return await env.ASSETS.fetch(request);
     } catch {
-      const notFound = await env.ASSETS.fetch(new Request(url.origin + '/index.html'));
+      // Fallback to index.html for SPA routing
+      const notFound = await env.ASSETS.fetch(
+        new Request(url.origin + "/index.html")
+      );
       return new Response(notFound.body, { ...notFound, status: 404 });
     }
   },
