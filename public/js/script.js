@@ -19,8 +19,8 @@ let state = {
     timeoutId: null, // New state variable to hold the timeout timer
 };
 
-// --- API Base URL pointing to Worker proxy ---
-const API_BASE = 'https://yumaapi.vercel.app/anime/zoro';
+// --- API Base URL pointing to the new instance ---
+const API_BASE = 'https://yumaapi.vercel.app/';
 const CORS_PROXY_URL = 'https://cors.consumet.stream/';
 
 const SERVERS = ['vidcloud', 'megacloud'];
@@ -270,10 +270,10 @@ async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
     startTimeout("Could not load home anime data.");
     try {
-        const res = await fetch(`${API_BASE}/top-airing`);
+        const res = await fetch(`${API_BASE}top-airing`);
         const data = await res.json();
         const trending = data.results || [];
-        const recent = []; // This API doesn't have a direct 'recent' endpoint
+        const recent = [];
         setState({ homeData: { trending, recent } });
     } catch (err) {
         console.error(err);
@@ -288,7 +288,7 @@ async function fetchSearchResults(page = 1) {
     setState({ isLoading: true, error: null, currentPage: page, view: 'home' });
     startTimeout("Failed to fetch search results.");
     try {
-        const res = await fetch(`${API_BASE}/search?q=${state.lastSearchQuery}&page=${page}`);
+        const res = await fetch(`${API_BASE}search?q=${state.lastSearchQuery}&page=${page}`);
         const data = await res.json();
         setState({ searchResults: { results: data.results, hasNextPage: data.hasNextPage }, isLoading: false });
     } catch (err) {
@@ -303,16 +303,15 @@ async function fetchAnimeDetails(animeId) {
     setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, availableSubServers: [], availableDubServers: [], selectedEpisodeId: null });
     startTimeout("Failed to fetch anime details.");
     try {
-        const detailsRes = await fetch(`${API_BASE}/info/${animeId}`);
+        const detailsRes = await fetch(`${API_BASE}info/${animeId}`);
         const detailsData = await detailsRes.json();
 
-        // The new API provides episodes directly in the details response
         if (!detailsData.episodes || !Array.isArray(detailsData.episodes)) {
             throw new Error("Invalid episode data from API.");
         }
 
-        const availableSubServers = (detailsData.sub || []).length > 0 ? SERVERS : [];
-        const availableDubServers = (detailsData.dub || []).length > 0 ? SERVERS : [];
+        const availableSubServers = (detailsData.sub) ? SERVERS : [];
+        const availableDubServers = (detailsData.dub) ? SERVERS : [];
 
         setState({
             animeDetails: detailsData,
@@ -335,7 +334,7 @@ async function handleServerSelection(episodeId, serverName, type) {
     setState({ isLoading: true, videoSrc: null, error: null });
     startTimeout(`Failed to load streaming source from ${serverName}.`);
     try {
-        const watchUrl = `${API_BASE}/watch?episodeId=${episodeId}&server=${serverName}&type=${type}`;
+        const watchUrl = `${API_BASE}watch?episodeId=${episodeId}&server=${serverName}&type=${type}`;
         const watchRes = await fetch(watchUrl);
         const watchData = await watchRes.json();
 
