@@ -20,7 +20,7 @@ let state = {
 
 // --- API Base URL pointing to Worker proxy ---
 const API_BASE = '/api/anime/aniwatch';
-const GOGOANIME_API_BASE = 'https://test-anime-woad.vercel.app/anime/gogoanime';
+const ZORO_API_BASE = 'https://test-anime-woad.vercel.app/anime/zoro';
 const CORS_PROXY_URL = 'https://cors.consumet.stream/';
 
 // --- Render Helpers ---
@@ -49,7 +49,7 @@ const SearchBar = () => `
       class="w-full p-4 pr-12 text-lg text-white bg-gray-800 border-2 border-gray-700 rounded-full focus:outline-none focus:border-blue-500 transition-colors"
       ${state.isLoading ? 'disabled' : ''} />
     <button type="submit" ${state.isLoading ? 'disabled' : ''}
-      class="absolute top-1/2 right-4 -translate-y-1/2 text-gray-400 hover:text-white disabled:opacity-50">
+      class="absolute top-1/2 right-4 -translate-y-2/2 text-gray-400 hover:text-white disabled:opacity-50">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"></circle>
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -358,27 +358,29 @@ async function handleServerSelection(episodeId, serverName) {
     } catch (err) {
         console.error("AniWatch API failed, attempting fallback:", err);
 
-        // Fallback to Gogoanime API without a proxy
+        // Fallback to Zoro API
         try {
             const parts = episodeId.split("?ep=");
             const animeSlug = parts[0];
             const episodeNumber = state.animeEpisodes.find(ep => ep.episodeId === episodeId).episodeNo;
             
-            // Unproxied API call
-            const gogoanimeSourceRes = await fetch(`${GOGOANIME_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}`);
-            const gogoanimeSourceData = await gogoanimeSourceRes.json();
+            const zoroUrl = `${ZORO_API_BASE}/watch/${animeSlug}-episode-${episodeNumber}?server=vidcloud`;
             
-            if (!gogoanimeSourceData.sources || gogoanimeSourceData.sources.length === 0) {
-                throw new Error('Gogoanime fallback failed to provide sources.');
+            const zoroRes = await fetch(zoroUrl);
+            const zoroData = await zoroRes.json();
+            
+            if (!zoroData.sources || zoroData.sources.length === 0) {
+                throw new Error('Zoro fallback failed to provide sources.');
             }
 
-            const finalGogoanimeSourceUrl = gogoanimeSourceData.sources[0].url;
+            const finalZoroSourceUrl = zoroData.sources[0].url;
             
-            // Unproxied video URL
-            setState({ videoSrc: finalGogoanimeSourceUrl, isLoading: false, error: null });
-        } catch (gogoanimeErr) {
-            console.error(gogoanimeErr);
-            setState({ error: `Fallback failed to load episode: ${gogoanimeErr.message}`, isLoading: false });
+            const finalProxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(finalZoroSourceUrl)}`;
+
+            setState({ videoSrc: finalProxiedUrl, isLoading: false, error: null });
+        } catch (zoroErr) {
+            console.error(zoroErr);
+            setState({ error: `Fallback failed to load episode: ${zoroErr.message}`, isLoading: false });
         }
     }
 }
