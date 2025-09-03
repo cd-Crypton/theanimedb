@@ -18,41 +18,37 @@ export default {
 
     // Proxy API calls
     if (url.pathname.startsWith('/api/')) {
-    const targetPath = url.pathname.substring(5); // remove "/api/"
-    const targetUrl = `${CONSUMET_API_BASE}${targetPath}${url.search}`;
+      const targetPath = url.pathname.replace('/api/', '/');
+      const targetUrl = `${CONSUMET_API_BASE}${targetPath}${url.search}`;
 
-    try {
-      const response = await fetch(targetUrl, {
-        method: "GET",
-        headers: {
-          "User-Agent": "TheAnimeDB (via Cloudflare Worker)",
-        },
-      });
+      try {
+        const response = await fetch(targetUrl, {
+          method: "GET",
+          headers: {
+            "User-Agent": "TheAnimeDB (via Cloudflare Worker)",
+          },
+        });
 
-      const text = await response.text();
-      console.log(">>> Proxy Target:", targetUrl);
-      console.log(">>> Proxy Response (first 300 chars):", text.slice(0, 300));
-
-      return new Response(text, {
-        status: response.status,
-        headers: {
-          "Content-Type": response.headers.get("Content-Type") || "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
-    } catch (error) {
-      return new Response(
-        JSON.stringify({ error: "Proxy error", details: error.message }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+        const text = await response.text();
+        return new Response(text, {
+          status: response.status,
+          headers: {
+            "Content-Type": response.headers.get("Content-Type") || "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      } catch (error) {
+        return new Response(
+          JSON.stringify({ error: "Proxy error", details: error.message }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
-  }
 
     // Serve static assets
     try {
       return await env.ASSETS.fetch(request);
     } catch {
-      // fallback to index.html for SPA
       const notFound = await env.ASSETS.fetch(new Request(url.origin + '/index.html'));
       return new Response(notFound.body, { ...notFound, status: 404 });
     }
