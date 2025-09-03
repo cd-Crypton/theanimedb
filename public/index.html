@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnimeStream</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts & Custom Stylesheet -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- HLS.js for video streaming -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans">
+
+    <div id="app" class="p-4 sm:p-6 lg:p-8">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-white">
+                <span class="text-blue-500">Anime</span>Stream
+            </h1>
+            <p class="text-gray-400 mt-2">Powered by Consumet API (AnimePahe)</p>
+            <p class="text-xs text-gray-500 mt-1">For educational purposes only.</p>
+        </header>
+
+        <main id="main-content">
+            <!-- App content will be rendered by script.js -->
+        </main>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p>This is a non-commercial project for educational purposes. All content is indexed from third-party sources.</p>
+        </footer>
+    </div>
+
+    <!-- Your application logic is now in a separate file -->
+    <script src="js/script.js"></script>
+</body>
+</html>
+
