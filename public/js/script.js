@@ -76,7 +76,7 @@ const AnimeCard = (anime) => {
     return `
     <div onclick="${onclickAction}" class="bg-gray-800 rounded-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-transform duration-300">
       <div class="relative pb-[140%]">
-        <img src="${anime.image || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
+        <img src="${anime.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
              alt="${animeTitle}"
              class="absolute top-0 left-0 w-full h-full object-cover group-hover:opacity-75 transition-opacity"
              onerror="this.onerror=null; this.src='https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found';" />
@@ -144,9 +144,9 @@ const renderDetails = () => {
         mainContent.innerHTML = Spinner();
         return;
     }
-    
+
     const details = state.animeDetails;
-    const genres = details.genres ? details.genres.join(', ') : 'N/A';
+    const genres = details.animeInfo.Genres ? details.animeInfo.Genres.join(', ') : 'N/A';
 
     let episodeListHtml = '';
     if (state.animeEpisodes && state.animeEpisodes.length > 0) {
@@ -156,7 +156,7 @@ const renderDetails = () => {
                 ${state.animeEpisodes.map(ep => `
                     <button onclick="handleEpisodeSelection('${ep.id}')"
                             class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
-                        ${ep.number}
+                        ${ep.episode_no}
                     </button>
                 `).join('')}
             </div>
@@ -167,14 +167,38 @@ const renderDetails = () => {
 
     let videoPlayerHtml = '';
     if (state.videoSrc) {
-    videoPlayerHtml = `
-        <div class="flex justify-center mb-8">
-            <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
-                <video id="video-player" controls class="w-full h-full"></video> 
+        videoPlayerHtml = `
+            <div class="flex justify-center mb-8">
+                <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
+                    <video controls class="w-full h-full" src="${state.videoSrc}" type="video/mp4"></video>
+                </div>
             </div>
-        </div>
-    `;
-}
+        `;
+    } else if (state.selectedEpisodeId) {
+        const subServerButtonsHtml = SERVERS.map(server => `
+            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'sub')" 
+                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                ${server}
+            </button>
+        `).join('');
+
+        const dubServerButtonsHtml = SERVERS.map(server => `
+            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'dub')" 
+                    class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                ${server}
+            </button>
+        `).join('');
+
+        videoPlayerHtml = `
+            <div class="mb-8">
+                <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
+                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
+                <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
+                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
+                <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
+            </div>
+        `;
+    }
 
     const content = `
     <div class="max-w-4xl mx-auto">
@@ -186,25 +210,25 @@ const renderDetails = () => {
         </button>
         <div class="flex flex-col md:flex-row gap-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
             <div class="md:flex-shrink-0">
-                <img src="${details.image || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
+                <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
                      alt="${details.title}"
                      class="w-full md:w-64 h-auto rounded-lg shadow-md" />
             </div>
             <div class="flex-grow">
                 <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${details.title}</h1>
-                <p class="text-gray-400 mb-4">${details.japaneseTitle || ''}</p>
+                <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
                 <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
                     <div>
                         <p class="font-semibold text-white">Released:</p>
-                        <p>${details.releaseDate || 'N/A'}</p>
+                        <p>${details.animeInfo.Aired || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Status:</p>
-                        <p>${details.status || 'N/A'}</p>
+                        <p>${details.animeInfo.Status || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Type:</p>
-                        <p>${details.type || 'N/A'}</p>
+                        <p>${details.showType || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="font-semibold text-white">Genres:</p>
@@ -213,7 +237,7 @@ const renderDetails = () => {
                 </div>
                 <p class="text-gray-300 mb-4">
                     <span class="font-semibold text-white">Summary:</span>
-                    ${details.description || 'No summary available.'}
+                    ${details.animeInfo.Overview || 'No summary available.'}
                 </p>
             </div>
         </div>
