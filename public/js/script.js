@@ -21,7 +21,6 @@ let state = {
     videoSrc: null,
     isLoading: true,
     error: null,
-    timeoutId: null,
 };
 
 // --- API Base URL pointing to the new instance ---
@@ -35,6 +34,7 @@ const Spinner = () => `
   <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
 </div>`;
 
+// This is no longer needed for player errors, but we'll keep it for other errors.
 const ErrorDisplay = (message, showBackButton = false) => {
     let backButton = '';
     if (showBackButton) {
@@ -143,7 +143,7 @@ const renderHome = () => {
 };
 
 const renderDetails = () => {
-    document.getElementById('search-bar-container').innerHTML = ''; // Hide search bar
+    document.getElementById('search-bar-container').innerHTML = '';
     if (state.isLoading || !state.animeDetails) {
         mainContent.innerHTML = Spinner();
         return;
@@ -157,12 +157,7 @@ const renderDetails = () => {
         episodeListHtml = `
             <h3 class="text-xl font-bold text-white mb-2">Episode List</h3>
             <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto max-h-96 custom-scrollbar">
-                ${state.animeEpisodes.map(ep => `
-                    <button onclick="handleEpisodeSelection('${ep.id}')"
-                            class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">
-                        ${ep.episode_no}
-                    </button>
-                `).join('')}
+                ${state.animeEpisodes.map(ep => `<button onclick="handleEpisodeSelection('${ep.id}')" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">${ep.episode_no}</button>`).join('')}
             </div>
         `;
     } else {
@@ -170,36 +165,25 @@ const renderDetails = () => {
     }
 
     let videoPlayerHtml = '';
-    if (state.selectedEpisodeId) { // Show player area if an episode is selected
+    if (state.selectedEpisodeId) {
         videoPlayerHtml = `
             <div class="flex justify-center mb-8">
-                <div class="w-full lg:w-3/4 bg-black rounded-lg overflow-hidden">
-                    <video id="video-player" class="video-js vjs-theme-city vjs-big-play-centered" preload="auto" controls></video>
+                <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
+                    <video id="video-player" class="video-js vjs-theme-city vjs-big-play-centered" controls preload="auto" width="640" height="360"></video>
                 </div>
             </div>
         `;
     }
     
-    // Server selection buttons will now appear below the player area
+    // Server selection will now always be visible when an episode is selected
     let serverSelectionHtml = '';
-    if(state.selectedEpisodeId && !state.videoSrc) {
-        const subServerButtonsHtml = state.availableSubServers.map(server => `
-            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'sub')" 
-                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                ${server}
-            </button>
-        `).join('');
-
-        const dubServerButtonsHtml = state.availableDubServers.map(server => `
-            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'dub')" 
-                    class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                ${server}
-            </button>
-        `).join('');
+    if (state.selectedEpisodeId) {
+        const subServerButtonsHtml = state.availableSubServers.map(server => `<button onclick="handleServerSelection(event, '${state.selectedEpisodeId}', '${server}', 'sub')" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">${server}</button>`).join('');
+        const dubServerButtonsHtml = state.availableDubServers.map(server => `<button onclick="handleServerSelection(event, '${state.selectedEpisodeId}', '${server}', 'dub')" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">${server}</button>`).join('');
         
         serverSelectionHtml = `
             <div class="mb-8" id="server-selection-container">
-                <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
+                <h3 class="text-xl font-bold text-white mb-2">Servers</h3>
                 ${subServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4><div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>` : ''}
                 ${dubServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4><div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>` : ''}
             </div>`;
@@ -207,85 +191,43 @@ const renderDetails = () => {
 
     const content = `
     <div class="max-w-4xl mx-auto">
-        <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-            </svg>
-            Back to Home
-        </button>
+        <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>Back to Home</button>
         <div class="flex flex-col md:flex-row gap-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
-            <div class="md:flex-shrink-0">
-                <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}"
-                     alt="${details.title}"
-                     class="w-full md:w-64 h-auto rounded-lg shadow-md" />
-            </div>
+            <div class="md:flex-shrink-0"><img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full md:w-64 h-auto rounded-lg shadow-md" /></div>
             <div class="flex-grow">
                 <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${details.title}</h1>
                 <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
                 <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
-                    <div>
-                        <p class="font-semibold text-white">Released:</p>
-                        <p>${details.animeInfo.Aired || 'N/A'}</p>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-white">Status:</p>
-                        <p>${details.animeInfo.Status || 'N/A'}</p>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-white">Type:</p>
-                        <p>${details.showType || 'N/A'}</p>
-                    </div>
-                    <div>
-                        <p class="font-semibold text-white">Genres:</p>
-                        <p>${genres}</p>
-                    </div>
+                    <div><p class="font-semibold text-white">Released:</p><p>${details.animeInfo.Aired || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
                 </div>
-                <p class="text-gray-300 mb-4">
-                    <span class="font-semibold text-white">Summary:</span>
-                    ${details.animeInfo.Overview || 'No summary available.'}
-                </p>
+                <p class="text-gray-300 mb-4"><span class="font-semibold text-white">Summary:</span>${details.animeInfo.Overview || 'No summary available.'}</p>
             </div>
         </div>
-        
         <div class="mt-8">
             ${videoPlayerHtml}
             ${serverSelectionHtml}
-            ${state.error ? ErrorDisplay(state.error, state.isLoading === false) : ''}
+            ${state.error ? ErrorDisplay(state.error) : ''}
             <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
             ${episodeListHtml}
         </div>
-    </div>
-    `;
+    </div>`;
 
     mainContent.innerHTML = content;
 
-    // If a video player is supposed to be on the page, initialize it.
     if (document.getElementById('video-player')) {
         if (player && !player.isDisposed()) {
             player.dispose();
         }
-        // Initialize the player with fluid options for responsiveness
-        player = videojs('video-player', {
-            fluid: true,
-            aspectRatio: '16:9'
-        });
+        player = videojs('video-player');
     }
 };
 
 // --- App Logic ---
-const setState = (newState, options = {}) => {
+const setState = (newState) => {
     state = { ...state, ...newState };
-    // Clear existing timeout if it's active
-    if (state.timeoutId) {
-        clearTimeout(state.timeoutId);
-        state.timeoutId = null;
-    }
-
-    // This option prevents the UI from re-rendering, avoiding the player destruction bug.
-    if (options.preventRender) {
-        return;
-    }
-
     if (state.view === 'home') {
         renderHome();
     } else if (state.view === 'details') {
@@ -293,28 +235,9 @@ const setState = (newState, options = {}) => {
     }
 };
 
-const startTimeout = (message) => {
-    // Set a new timeout and store its ID
-    const timeoutId = setTimeout(() => {
-        // Re-enable server buttons on timeout
-        const serverContainer = document.getElementById('server-selection-container');
-        if (serverContainer) {
-            serverContainer.querySelectorAll('button').forEach(button => button.disabled = false);
-        }
-        setState({
-            isLoading: false,
-            error: `Request timed out. ${message || ''}`.trim(),
-            timeoutId: null,
-        });
-    }, 15000); // Increased timeout to 15 seconds
-    state.timeoutId = timeoutId;
-};
-
 async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
-    startTimeout("Could not load home anime data.");
     try {
-        // Fetch top-airing and recently-updated data in parallel
         const [topAiringRes, recentlyUpdatedRes] = await Promise.all([
             fetch(`${API_BASE}top-airing`),
             fetch(`${API_BASE}recently-updated`)
@@ -323,23 +246,19 @@ async function fetchHomeData() {
         const topAiringData = await topAiringRes.json();
         const recentlyUpdatedData = await recentlyUpdatedRes.json();
 
-        // Assign the data to the correct state properties
         const trending = topAiringData.results.data || [];
         const recent = recentlyUpdatedData.results.data || [];
         
-        setState({ homeData: { trending, recent } });
+        setState({ homeData: { trending, recent }, isLoading: false });
     } catch (err) {
         console.error(err);
         setState({ error: 'Could not load home anime data.', isLoading: false });
-    } finally {
-        setState({ isLoading: false });
     }
 }
 
 async function fetchSearchResults(page = 1) {
     if (!state.lastSearchQuery) return;
     setState({ isLoading: true, error: null, currentPage: page, view: 'home' });
-    startTimeout("Failed to fetch search results.");
     try {
         const res = await fetch(`${API_BASE}search?keyword=${state.lastSearchQuery}&page=${page}`);
         const data = await res.json();
@@ -348,14 +267,11 @@ async function fetchSearchResults(page = 1) {
     } catch (err) {
         console.error(err);
         setState({ error: 'Failed to fetch search results.', isLoading: false });
-    } finally {
-        setState({ isLoading: false });
     }
 }
 
 async function fetchAnimeDetails(animeId) {
     setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, selectedEpisodeId: null });
-    startTimeout("Failed to fetch anime details.");
     try {
         const detailsRes = await fetch(`${API_BASE}info?id=${animeId}`);
         const detailsData = await detailsRes.json();
@@ -380,7 +296,6 @@ async function fetchAnimeDetails(animeId) {
 
 async function handleEpisodeSelection(episodeId) {
     setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, error: null, availableSubServers: [], availableDubServers: [] });
-    startTimeout("Failed to fetch available servers.");
     try {
         const serversRes = await fetch(`${API_BASE}servers/${episodeId.split('?ep=')[0]}?ep=${episodeId.split('?ep=')[1]}`);
         const serversData = await serversRes.json();
@@ -403,58 +318,55 @@ async function handleEpisodeSelection(episodeId) {
     }
 }
 
-async function handleServerSelection(episodeId, serverName, type) {
+async function handleServerSelection(event, episodeId, serverName, type) {
     const serverContainer = document.getElementById('server-selection-container');
     if (serverContainer) {
-        serverContainer.querySelectorAll('button').forEach(button => button.disabled = true);
+        // Remove active class from all buttons
+        serverContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active-server'));
+        // Add active class to the clicked button
+        event.target.classList.add('active-server');
     }
-    setState({ isLoading: true, videoSrc: null, error: null }, { preventRender: true }); // Prevent re-render
-    startTimeout(`Failed to load streaming source from ${serverName}.`);
 
     try {
+        if (player && !player.isDisposed()) {
+             // Show a loading spinner inside the player
+            player.loadingSpinner.show();
+            player.error(null); // Clear previous errors
+        }
+
         const watchUrl = `${API_BASE}stream?id=${episodeId}&server=${serverName}&type=${type}`;
         const watchRes = await fetch(watchUrl);
         const watchData = await watchRes.json();
 
         if (!watchData.results?.streamingLink?.link?.file) {
-            throw new Error('Streaming source not found.');
+            throw new Error('Streaming source not found for this server.');
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
 
         if (player && !player.isDisposed()) {
-            // Add a specific error handler to the player instance
             player.on('error', () => {
                 const error = player.error();
                 console.error('Video.js Player Error:', error);
-                if (state.timeoutId) clearTimeout(state.timeoutId);
-                setState({ error: `Playback error: ${error.message}. Please try another server.` });
+                player.error({ code: 4, message: `The stream from ${serverName} failed to load. Please try another server.` });
             });
 
-            // Set the new source
-            player.src({
-                src: proxyUrl,
-                type: 'application/x-mpegURL'
-            });
+            player.src({ src: proxyUrl, type: 'application/x-mpegURL' });
 
-            // When the player has enough data to start, try to play it
             player.one('loadedmetadata', () => {
-                // The video has loaded successfully, so update state without re-rendering
-                setState({ videoSrc: proxyUrl, isLoading: false, error: null }, { preventRender: true });
-                // Hide the server selection container manually
-                if (serverContainer) serverContainer.style.display = 'none';
-                
+                player.loadingSpinner.hide(); // Hide spinner on load
                 player.play().catch(err => {
                     console.error("Video.js play failed:", err);
-                    setState({ error: 'Browser prevented autoplay. Please click play.' });
+                    player.error({code: 4, message: "Playback was prevented by the browser."})
                 });
             });
         }
     } catch (err) {
         console.error(err);
-        if (state.timeoutId) clearTimeout(state.timeoutId);
-        setState({ error: `Failed to load episode: ${err.message}` });
+        if (player && !player.isDisposed()) {
+            player.error({ code: 4, message: err.message });
+        }
     }
 }
 
@@ -469,7 +381,6 @@ function handleSearchInput(query) {
 
 function selectSuggestion(animeId) {
   handleSelectAnime(animeId);
-  // Clear the search suggestions after selection
   setState({ searchSuggestions: [] });
 }
 
@@ -494,7 +405,6 @@ async function fetchSearchSuggestions(query) {
     const res = await fetch(`${API_BASE}search/suggest?keyword=${query}`);
     const data = await res.json();
     if (data.results) {
-        // The new API returns objects with a 'title' property
         setState({ searchSuggestions: data.results });
     }
   } catch(err) {
@@ -508,7 +418,6 @@ function handleSelectAnime(animeId){
 }
 
 function handleGoHome(){
-    // When leaving the details page, properly dispose of the player
     if (player && !player.isDisposed()) {
         player.dispose();
         player = null;

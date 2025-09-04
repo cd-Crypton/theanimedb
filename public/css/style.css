@@ -9,3 +9,10 @@
 
 /* Button disabled state */
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Add this new style for the active server button */
+.active-server {
+  background-color: #ef4444 !important; /* A distinct color like red */
+  color: #ffffff !important;
+  border: 1px solid #ef4444;
+}
