@@ -64,18 +64,26 @@ const ErrorDisplay = (message, showBackButton = false) => {
 const SpotlightBanner = (spotlights) => {
     if (!spotlights || spotlights.length === 0) return '';
 
-    const slides = spotlights.map((anime, index) => `
+    const slides = spotlights.map((anime, index) => {
+        const genres = anime.genres ? anime.genres.join(', ') : 'N/A';
+        const type = anime.showType || 'N/A';
+        return `
         <div class="spotlight-slide ${index === 0 ? 'active' : ''}" data-index="${index}" style="background-image: url('${anime.poster}')">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
             <div class="relative z-10 p-8 md:p-12 lg:p-16 flex flex-col justify-end h-full text-white">
                 <h2 class="text-3xl md:text-5xl font-bold mb-4 line-clamp-2">${anime.title}</h2>
+                <div class="flex flex-wrap items-center gap-2 text-sm text-gray-300 mb-2">
+                    <p class="font-semibold">${type}</p>
+                    <span class="text-gray-500">|</span>
+                    <p>${genres}</p>
+                </div>
                 <p class="text-gray-300 md:text-lg mb-6 max-w-2xl line-clamp-3">${anime.description}</p>
                 <button onclick="handleSelectAnime('${anime.id}')" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg w-fit hover:bg-blue-600 transition-colors">
                     Watch Now
                 </button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
     return `
     <section class="relative h-[60vh] md:h-[70vh] rounded-lg overflow-hidden mb-10 group">
@@ -93,12 +101,10 @@ const SpotlightBanner = (spotlights) => {
 const SearchBar = () => `
 <form id="search-form" class="w-full">
   <div class="relative flex items-center gap-2">
-    <!-- Search Input -->
     <input type="search" id="search-input" placeholder="Search for an anime..."
       class="flex-grow w-full p-4 text-lg text-white bg-gray-800 border-2 border-gray-700 rounded-full focus:outline-none focus:border-blue-500 transition-colors"
       oninput="handleSearchInput(this.value)"
       ${state.isLoading ? 'disabled' : ''} />
-    <!-- Search Button -->
     <button type="submit" ${state.isLoading ? 'disabled' : ''}
       class="flex-shrink-0 bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
       <span class="sr-only">Search</span>
