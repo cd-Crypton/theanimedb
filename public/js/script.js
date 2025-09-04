@@ -1,5 +1,7 @@
 // --- App Logic ---
 const PROXY_URL = 'https://theanimedbproxy.vercel.app/';
+// --- App Logic ---
+const PROXY_URL = 'https://proxy.shoko.fun/';
 const mainContent = document.getElementById('main-content');
 // The global player instance is now for Video.js
 let player = null; 
@@ -173,8 +175,8 @@ const renderDetails = () => {
     if (state.selectedEpisodeId) { // Show player area if an episode is selected
         videoPlayerHtml = `
             <div class="flex justify-center mb-8">
-                <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
-                    <video id="video-player" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto" width="640" height="360"></video>
+                <div class="w-full lg:w-3/4 bg-black rounded-lg overflow-hidden">
+                    <video id="video-player" class="video-js vjs-theme-city vjs-big-play-centered" preload="auto" controls></video>
                 </div>
             </div>
         `;
@@ -261,11 +263,14 @@ const renderDetails = () => {
 
     // If a video player is supposed to be on the page, initialize it.
     if (document.getElementById('video-player')) {
-        // Dispose of the old player if it exists, to prevent memory leaks
         if (player && !player.isDisposed()) {
             player.dispose();
         }
-        player = videojs('video-player');
+        // Initialize the player with fluid options for responsiveness
+        player = videojs('video-player', {
+            fluid: true,
+            aspectRatio: '16:9'
+        });
     }
 };
 
