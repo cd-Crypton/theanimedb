@@ -119,11 +119,25 @@ export default {
             }
         }
 
-        // --- Static Assets ---
-        try {
-            return await env.ASSETS.fetch(request);
-        } catch {
+        // --- Final Fallback to SPA Router or Static Assets ---
+        const path = url.pathname;
+        const isApiOrProxy = path.startsWith('/api/') || path === '/m3u8-proxy' || path === '/ts-proxy';
+        const isKnownStaticAsset = path.includes('.'); // A simple check for file extensions
+
+        if (!isApiOrProxy && !isKnownStaticAsset) {
+            // If the path is not a known API endpoint and does not have a file extension,
+            // assume it's a client-side route and serve index.html
             return env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+        } else {
+            // For all other requests, attempt to serve the static asset
+            try {
+                return await env.ASSETS.fetch(request);
+            } catch (e) {
+                // If fetching the asset fails for some reason (e.g., file not found),
+                // provide a clear 404 response instead of a worker exception.
+                return new Response('Not Found', { status: 404 });
+            }
         }
+
     },
 };
