@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 const VERCEL_API_BASE = 'https://crypton-api.vercel.app';
 
 // Helper function to create a response with CORS headers
@@ -109,20 +107,29 @@ export default {
         if (url.pathname.startsWith('/api/')) {
             const targetUrl = VERCEL_API_BASE + url.pathname + url.search;
             try {
-                const response = await axios.get(targetUrl, {
+                const response = await fetch(targetUrl, {
                     headers: { 'User-Agent': 'TheAnimeDB (via Cloudflare Worker)' },
                 });
-                return createCorsResponse(JSON.stringify(response.data), { status: response.status });
+
+                const data = await response.json();
+                const headers = new Headers(response.headers);
+                headers.set('Content-Type', 'application/json');
+                
+                return createCorsResponse(JSON.stringify(data), {
+                    status: response.status,
+                    headers: headers
+                });
             } catch (err) {
-                const errorResponse = err.response || {};
-                return createCorsResponse(JSON.stringify({ error: 'Proxy failed', details: err.message }), { status: errorResponse.status || 500 });
+                return createCorsResponse(JSON.stringify({ error: 'Proxy failed', details: err.message }), {
+                    status: 500
+                });
             }
         }
-
-        // --- Final Fallback to SPA Router or Static Assets ---
+        
+        // --- Final Fallback for SPA Routing ---
         const path = url.pathname;
         const isApiOrProxy = path.startsWith('/api/') || path === '/m3u8-proxy' || path === '/ts-proxy';
-        const isKnownStaticAsset = path.includes('.'); // A simple check for file extensions
+        const isKnownStaticAsset = path.includes('.');
 
         if (!isApiOrProxy && !isKnownStaticAsset) {
             // If the path is not a known API endpoint and does not have a file extension,
@@ -138,6 +145,5 @@ export default {
                 return new Response('Not Found', { status: 404 });
             }
         }
-
     },
 };
