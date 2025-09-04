@@ -362,12 +362,24 @@ async function fetchSearchSuggestions(query) {
 async function fetchAnimeDetails(animeId) {
     setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, selectedEpisodeId: null });
     try {
-        const detailsRes = await fetch(`${API_BASE}/info?id=${animeId}`);
+        // Use Promise.all to fetch details and episodes concurrently
+        const [detailsRes, episodesRes] = await Promise.all([
+            fetch(`${API_BASE}/info?id=${animeId}`),
+            fetch(`${API_BASE}/episodes/${animeId}`)
+        ]);
+
         const detailsData = await detailsRes.json();
-        const episodesRes = await fetch(`${API_BASE}/episodes/${animeId}`);
         const episodesData = await episodesRes.json();
-        if (!episodesData.results || !Array.isArray(episodesData.results.episodes)) throw new Error("Invalid episode data from API.");
-        setState({ animeDetails: detailsData.results.data, animeEpisodes: episodesData.results.episodes, isLoading: false });
+        
+        if (!episodesData.results || !Array.isArray(episodesData.results.episodes)) {
+            throw new Error("Invalid episode data from API.");
+        }
+        
+        setState({
+            animeDetails: detailsData.results.data,
+            animeEpisodes: episodesData.results.episodes,
+            isLoading: false
+        });
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to fetch anime details: ${err.message}`, isLoading: false });
