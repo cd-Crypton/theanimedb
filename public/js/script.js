@@ -1,6 +1,7 @@
 // --- App Logic ---
 const PROXY_URL = 'https://proxy.shoko.fun/';
 const mainContent = document.getElementById('main-content');
+let player = null; // To hold the video.js player instance
 
 // --- State Management ---
 let state = {
@@ -172,7 +173,7 @@ const renderDetails = () => {
         videoPlayerHtml = `
             <div class="flex justify-center mb-8">
                 <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
-                    <video id="video-player" controls class="w-full h-full"></video>
+                    <video id="video-player" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto" width="640" height="360"></video>
                 </div>
             </div>
         `;
@@ -394,24 +395,27 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
+        // The PROXY_URL from your script is being used here
+        const proxyUrl = `${PROXY_URL}?url=${encodeURIComponent(sourceUrl)}`;
+        
         const videoElement = document.getElementById('video-player');
+        if (!videoElement) return;
 
-        // Construct the new external proxy URL
-        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
-
-        if (Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(proxyUrl);
-            hls.attachMedia(videoElement);
-            hls.on(Hls.Events.MANIFEST_PARSED, function () {
-                videoElement.play();
-            });
-        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            videoElement.src = proxyUrl;
-            videoElement.addEventListener('loadedmetadata', function () {
-                videoElement.play();
-            });
+        // Initialize video.js player if it doesn't exist or was disposed
+        if (!player || player.isDisposed()) {
+            player = videojs(videoElement);
         }
+
+        // Set the new source for the player
+        player.src({
+            src: proxyUrl,
+            type: 'application/x-mpegURL' // Specify HLS stream type
+        });
+
+        // Autoplay when the player is ready
+        player.ready(() => {
+            player.play();
+        });
         
         setState({ videoSrc: proxyUrl, isLoading: false, error: null });
 
@@ -473,6 +477,11 @@ function handleSelectAnime(animeId){
 }
 
 function handleGoHome(){
+    // Properly dispose of the video.js player instance
+    if (player) {
+        player.dispose();
+        player = null;
+    }
     setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [], searchSuggestions: [] });
     fetchHomeData();
 }
