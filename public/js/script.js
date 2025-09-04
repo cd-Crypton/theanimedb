@@ -121,7 +121,7 @@ const renderHome = () => {
 
         content = `
         <section class="mb-10">
-          <h2 class="text-2xl font-bold text-white mb-4">Trending Now</h2>
+          <h2 class="text-2xl font-bold text-white mb-4">Top Airing</h2>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">${trendingContent}</div>
         </section>
         <section>
@@ -258,10 +258,19 @@ async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
     startTimeout("Could not load home anime data.");
     try {
-        const res = await fetch(`${API_BASE}`);
-        const data = await res.json();
-        const trending = data.results.trending || [];
-        const recent = data.results.latestEpisode || [];
+        // Fetch top-airing and recently-updated data in parallel
+        const [topAiringRes, recentlyUpdatedRes] = await Promise.all([
+            fetch(`${API_BASE}top-airing`),
+            fetch(`${API_BASE}recently-updated`)
+        ]);
+
+        const topAiringData = await topAiringRes.json();
+        const recentlyUpdatedData = await recentlyUpdatedRes.json();
+
+        // Assign the data to the correct state properties
+        const trending = topAiringData.results.data || [];
+        const recent = recentlyUpdatedData.results.data || [];
+        
         setState({ homeData: { trending, recent } });
     } catch (err) {
         console.error(err);
