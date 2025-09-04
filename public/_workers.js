@@ -1,10 +1,13 @@
-const VERCEL_API_BASE = 'https://anime-api-three-sable.vercel.app'; // Your Vercel API
+import axios from 'axios';
+
+// The API endpoint is now defined in the Worker script
+const VERCEL_API_BASE = 'https://crypton-api.vercel.app';
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // Handle CORS preflight
+    // Standard CORS preflight handling
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
@@ -16,46 +19,43 @@ export default {
       });
     }
 
-    // Proxy API requests
-    if (url.pathname.startsWith('/api/anime/aniwatch')) {
-      // Build the target Vercel API URL
-      const targetPath = url.pathname.replace('/api/anime/aniwatch', '/aniwatch');
-      const targetUrl = VERCEL_API_BASE + targetPath + url.search;
+    // Proxy API requests if they start with /api/
+    if (url.pathname.startsWith('/api/')) {
+      // Construct the full target URL
+      const targetUrl = VERCEL_API_BASE + url.pathname + url.search;
 
       try {
-        const response = await fetch(targetUrl, {
-          method: request.method,
+        // Make the request using axios
+        const response = await axios.get(targetUrl, {
           headers: {
             'User-Agent': 'TheAnimeDB (via Cloudflare Worker)',
-            'Accept': 'application/json',
-          },
+          }
         });
 
-        const body = await response.text(); // Pass body as text
-        return new Response(body, {
+        // Return the response from the API
+        return new Response(JSON.stringify(response.data), {
           status: response.status,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
           },
         });
+
       } catch (err) {
+        const errorResponse = err.response || {};
         return new Response(JSON.stringify({ error: 'Proxy failed', details: err.message }), {
-          status: 500,
+          status: errorResponse.status || 500,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         });
       }
     }
 
-    // Serve static assets (if you use Pages)
+    // Serve static assets from Cloudflare Pages
     try {
       return await env.ASSETS.fetch(request);
     } catch {
-      // Fallback for SPA
-      const notFound = await env.ASSETS.fetch(new Request(url.origin + '/index.html'));
-      return new Response(notFound.body, { ...notFound, status: 404 });
+      // Fallback for Single Page Applications (SPA)
+      return env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
     }
   },
 };

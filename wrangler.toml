@@ -1,6 +1,7 @@
 name = "theanimedb"
 main = "public/_workers.js"
 compatibility_date = "2025-06-05"
+compatibility_flags = ["nodejs_compat"] 
 
 # This explicitly binds the 'dist' directory to the 'ASSETS' variable in your worker
 assets = { directory = "./public" }
