@@ -17,20 +17,16 @@
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans">
   <div id="app" class="p-4 sm:p-6 lg:p-8">
-    <header class="mb-8">
-      <div class="flex flex-col md:flex-row justify-between items-center">
-        <div class="text-center md:text-left">
-            <div class="max-w-xs inline-block">
-                <svg viewBox="0 0 280 50" xmlns="http://www.w3.org/2000/svg" class="w-full">
-                    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Inter, sans-serif" font-size="32" font-weight="900" fill="#FFFFFF">
-                        TheAnime<tspan fill="#3B82F6">DB</tspan>
-                    </text>
-                </svg>
-            </div>
-            <p class="text-xs text-gray-500 mt-1">Your Anime Database</p>
+    <header class="mb-8 p-4">
+      <div class="flex items-center justify-between">
+        <div class="flex flex-col items-start min-w-0"> 
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-none">
+                <span class="text-white">TheAnime</span><span class="text-blue-500">DB</span>
+            </h1>
+            <p class="text-gray-500 text-xs md:text-sm mt-1">Your Anime Database</p>
         </div>
         
-        <div id="search-bar-container" class="w-full md:w-1/2 mt-4 md:mt-0">
+        <div id="search-bar-container" class="flex-grow flex justify-end max-w-sm md:max-w-md ml-4">
           </div>
       </div>
     </header>
