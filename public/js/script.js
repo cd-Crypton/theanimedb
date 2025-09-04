@@ -6,9 +6,11 @@ let player = null;
 
 // --- State Management ---
 let state = {
-    view: 'home', // 'home' or 'details'
+    view: 'home', // 'home', 'details', or 'category'
     homeData: { trending: [], recent: [], spotlights: [] },
     searchResults: null,
+    categoryResults: null,
+    currentCategoryTitle: null,
     searchSuggestions: [], // New state variable for search suggestions
     lastSearchQuery: '',
     currentPage: 1,
@@ -27,7 +29,16 @@ let state = {
 // --- API Base URL pointing to the new instance ---
 const API_BASE = 'https://crypton-api.vercel.app/api/';
 
-const SERVERS = ['vidcloud', 'megacloud'];
+const MENU_ITEMS = [
+    { title: 'Movies', endpoint: '/movie' },
+    { title: 'TV Series', endpoint: '/tv' },
+    { title: 'Subbed Anime', endpoint: '/subbed-anime' },
+    { title: 'Dubbed Anime', endpoint: '/dubbed-anime' },
+    { title: 'Completed', endpoint: '/completed' },
+    { title: 'Special', endpoint: '/special' },
+    { title: 'OVA', endpoint: '/ova' },
+    { title: 'ONA', endpoint: '/ona' },
+];
 
 // --- Render Helpers ---
 const Spinner = () => `
@@ -281,6 +292,30 @@ const renderDetails = () => {
     }
 };
 
+const renderCategoryPage = () => {
+    document.getElementById('search-bar-container').innerHTML = SearchBar(); // Show search bar on category pages
+    
+    let content = '';
+    if (state.isLoading) {
+        content = Spinner();
+    } else if (state.categoryResults) {
+        content = `
+        <section>
+          <h2 class="text-2xl font-bold text-white mb-4">${state.currentCategoryTitle}</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            ${state.categoryResults.results.map(anime => AnimeCard(anime)).join('')}
+          </div>
+          ${renderPagination()}
+        </section>`;
+    } else {
+        content = '<p class="text-gray-400">No anime found in this category.</p>';
+    }
+
+    mainContent.innerHTML = (state.error ? ErrorDisplay(state.error) : '') + content;
+    const searchForm = document.getElementById('search-form');
+    if (searchForm) searchForm.addEventListener('submit', handleSearchSubmit);
+};
+
 // --- App Logic ---
 const setState = (newState) => {
     state = { ...state, ...newState };
@@ -288,6 +323,8 @@ const setState = (newState) => {
         renderHome();
     } else if (state.view === 'details') {
         renderDetails();
+    } else if (state.view === 'category') {
+        renderCategoryPage();
     }
 };
 
@@ -308,6 +345,19 @@ async function fetchHomeData() {
     } catch (err) {
         console.error(err);
         setState({ error: 'Could not load home anime data.', isLoading: false });
+    }
+}
+
+async function fetchCategoryResults(endpoint, page = 1) {
+    setState({ isLoading: true, error: null, view: 'category', currentPage: page });
+    try {
+        const res = await fetch(`${API_BASE}${endpoint}?page=${page}`);
+        const data = await res.json();
+        const hasNextPage = data.results.totalPages > page;
+        setState({ categoryResults: { results: data.results.data, hasNextPage: hasNextPage }, isLoading: false });
+    } catch (err) {
+        console.error(err);
+        setState({ error: 'Failed to fetch category results.', isLoading: false });
     }
 }
 
@@ -477,8 +527,50 @@ function handleGoHome(){
         player.dispose();
         player = null;
     }
-    setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [], searchSuggestions: [] });
+    setState({ 
+        view:'home', 
+        searchResults: null, 
+        categoryResults: null,
+        currentCategoryTitle: null,
+        lastSearchQuery: '', 
+        videoSrc: null, 
+        selectedEpisodeId: null, 
+        availableSubServers: [], 
+        availableDubServers: [], 
+        searchSuggestions: [] 
+    });
     fetchHomeData();
+}
+
+// --- New Menu Logic ---
+function toggleMenu(show) {
+    const menu = document.getElementById('side-menu');
+    const overlay = document.getElementById('side-menu-overlay');
+    if (show) {
+        overlay.classList.remove('hidden');
+        menu.classList.remove('-translate-x-full');
+    } else {
+        overlay.classList.add('hidden');
+        menu.classList.add('-translate-x-full');
+    }
+}
+
+function handleCategoryClick(endpoint, title) {
+    state.currentCategoryEndpoint = endpoint;
+    state.currentCategoryTitle = title;
+    fetchCategoryResults(endpoint, 1);
+    toggleMenu(false);
+}
+
+function initializeMenu() {
+    const menuNavLinks = document.getElementById('menu-nav-links');
+    menuNavLinks.innerHTML = MENU_ITEMS.map(item => 
+        `<a href="#" onclick="handleCategoryClick('${item.endpoint}', '${item.title}')" class="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-base font-medium">${item.title}</a>`
+    ).join('');
+
+    document.getElementById('menu-toggle-btn').addEventListener('click', () => toggleMenu(true));
+    document.getElementById('close-menu-btn').addEventListener('click', () => toggleMenu(false));
+    document.getElementById('side-menu-overlay').addEventListener('click', () => toggleMenu(false));
 }
 
 // --- Banner Logic ---

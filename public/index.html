@@ -22,19 +22,40 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans">
+
+  <!-- Side Menu (Initially Hidden) -->
+  <div id="side-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+  <div id="side-menu" class="fixed top-0 left-0 w-64 h-full bg-gray-800 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out">
+    <div class="p-4">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold text-white">Menu</h2>
+        <button id="close-menu-btn" class="text-gray-400 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <nav id="menu-nav-links" class="flex flex-col gap-2"></nav>
+    </div>
+  </div>
+
   <div id="app" class="p-4 sm:p-6 lg:p-8">
     <header class="mb-8 p-4">
-      <!-- On small screens: stack vertically. On small screens and up: horizontal row -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <!-- On small screens: center items. On small screens and up: align left -->
-        <div class="flex flex-col items-center sm:items-start min-w-0"> 
-            <!-- Responsive text sizes for the title -->
-            <h1 class="text-2xl sm:text-3xl font-extrabold leading-none">
-                <span class="text-white">TheAnime</span><span class="text-blue-500">DB</span>
-            </h1>
+        <div class="flex items-center gap-4">
+          <!-- Burger Menu Button -->
+          <button id="menu-toggle-btn" class="text-white p-2 rounded-md hover:bg-gray-700">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+            </svg>
+          </button>
+          <div class="flex flex-col items-center sm:items-start min-w-0"> 
+              <h1 class="text-2xl sm:text-3xl font-extrabold leading-none">
+                  <span class="text-white">TheAnime</span><span class="text-blue-500">DB</span>
+              </h1>
+          </div>
         </div>
         
-        <!-- On small screens: full width. On small screens and up: auto width with a responsive max-width -->
         <div id="search-bar-container" class="w-full sm:w-auto sm:max-w-xs md:max-w-sm">
           </div>
       </div>
@@ -52,3 +73,4 @@
   <script src="js/script.js"></script>
 </body>
 </html>
+
