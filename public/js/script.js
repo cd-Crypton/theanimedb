@@ -1,5 +1,5 @@
 // --- App Logic ---
-const PROXY_URL = 'https://proxy.shoko.fun/';
+const PROXY_URL = 'https://theanimedbproxy.vercel.app/';
 const mainContent = document.getElementById('main-content');
 let hls;
 let player = null; // To hold the video.js player instance
