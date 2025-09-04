@@ -45,7 +45,7 @@ const ErrorDisplay = (message, showBackButton = false) => {
 };
 
 const SearchBar = () => `
-<form id="search-form" class="w-full max-w-2xl mx-auto mb-8">
+<form id="search-form" class="w-full max-w-2xl mx-auto">
   <div class="relative">
     <input type="search" id="search-input" placeholder="Search for an anime..."
       class="w-full p-4 pr-12 text-lg text-white bg-gray-800 border-2 border-gray-700 rounded-full focus:outline-none focus:border-blue-500 transition-colors"
@@ -99,6 +99,9 @@ const renderPagination = () => {
 };
 
 const renderHome = () => {
+    const searchBarContainer = document.getElementById('search-bar-container');
+    searchBarContainer.innerHTML = SearchBar();
+
     let content = '';
     if (state.isLoading) {
         content = Spinner();
@@ -130,17 +133,18 @@ const renderHome = () => {
         </section>`;
     }
 
-    mainContent.innerHTML = SearchBar() + (state.error ? ErrorDisplay(state.error) : '') + content;
+    mainContent.innerHTML = (state.error ? ErrorDisplay(state.error) : '') + content;
     const searchForm = document.getElementById('search-form');
     if (searchForm) searchForm.addEventListener('submit', handleSearchSubmit);
 };
 
 const renderDetails = () => {
+    document.getElementById('search-bar-container').innerHTML = ''; // Hide search bar
     if (state.isLoading || !state.animeDetails) {
         mainContent.innerHTML = Spinner();
         return;
     }
-
+    
     const details = state.animeDetails;
     const genres = details.genres ? details.genres.join(', ') : 'N/A';
 
