@@ -179,14 +179,14 @@ const renderDetails = () => {
     // Server selection buttons will now appear below the player area
     let serverSelectionHtml = '';
     if(state.selectedEpisodeId && !state.videoSrc) {
-        const subServerButtonsHtml = SERVERS.map(server => `
+        const subServerButtonsHtml = state.availableSubServers.map(server => `
             <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'sub')" 
                     class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
                 ${server}
             </button>
         `).join('');
 
-        const dubServerButtonsHtml = SERVERS.map(server => `
+        const dubServerButtonsHtml = state.availableDubServers.map(server => `
             <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'dub')" 
                     class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
                 ${server}
@@ -196,10 +196,8 @@ const renderDetails = () => {
         serverSelectionHtml = `
             <div class="mb-8">
                 <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
-                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
-                <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
-                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
-                <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
+                ${subServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4><div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>` : ''}
+                ${dubServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4><div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>` : ''}
             </div>`;
     }
 
@@ -355,7 +353,28 @@ async function fetchAnimeDetails(animeId) {
 }
 
 async function handleEpisodeSelection(episodeId) {
-    setState({ isLoading: false, selectedEpisodeId: episodeId, videoSrc: null, error: null });
+    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, error: null, availableSubServers: [], availableDubServers: [] });
+    startTimeout("Failed to fetch available servers.");
+    try {
+        const serversRes = await fetch(`${API_BASE}servers/${episodeId.split('?ep=')[0]}?ep=${episodeId.split('?ep=')[1]}`);
+        const serversData = await serversRes.json();
+        
+        if (!serversData.results || !Array.isArray(serversData.results)) {
+            throw new Error("Invalid server data from API.");
+        }
+
+        const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
+        const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
+
+        setState({ 
+            availableSubServers: subServers, 
+            availableDubServers: dubServers, 
+            isLoading: false 
+        });
+    } catch (err) {
+        console.error(err);
+        setState({ error: `Failed to fetch servers: ${err.message}`, isLoading: false });
+    }
 }
 
 async function handleServerSelection(episodeId, serverName, type) {
