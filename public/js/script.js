@@ -21,8 +21,7 @@ let state = {
 };
 
 // --- API Base URL pointing to the new instance ---
-const API_BASE = 'https://yumaapi.vercel.app/';
-const CORS_PROXY_URL = 'https://api.allorigins.win/raw?url='
+const API_BASE = 'https://crypton-api.vercel.app/api/';
 
 const SERVERS = ['vidcloud', 'megacloud'];
 
@@ -164,38 +163,14 @@ const renderDetails = () => {
 
     let videoPlayerHtml = '';
     if (state.videoSrc) {
-        videoPlayerHtml = `
-            <div class="flex justify-center mb-8">
-                <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
-                    <video controls class="w-full h-full" src="${state.videoSrc}" type="video/mp4"></video>
-                </div>
+    videoPlayerHtml = `
+        <div class="flex justify-center mb-8">
+            <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
+                <video id="video-player" controls class="w-full h-full"></video> 
             </div>
-        `;
-    } else if (state.selectedEpisodeId) {
-        const subServerButtonsHtml = SERVERS.map(server => `
-            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'sub')" 
-                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                ${server}
-            </button>
-        `).join('');
-
-        const dubServerButtonsHtml = SERVERS.map(server => `
-            <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'dub')" 
-                    class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                ${server}
-            </button>
-        `).join('');
-
-        videoPlayerHtml = `
-            <div class="mb-8">
-                <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
-                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
-                <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
-                <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
-                <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
-            </div>
-        `;
-    }
+        </div>
+    `;
+}
 
     const content = `
     <div class="max-w-4xl mx-auto">
@@ -283,10 +258,10 @@ async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
     startTimeout("Could not load home anime data.");
     try {
-        const res = await fetch(`${API_BASE}top-airing`);
+        const res = await fetch(`${API_BASE}`);
         const data = await res.json();
-        const trending = data.results || [];
-        const recent = [];
+        const trending = data.results.trending || [];
+        const recent = data.results.latestEpisode || [];
         setState({ homeData: { trending, recent } });
     } catch (err) {
         console.error(err);
@@ -301,9 +276,10 @@ async function fetchSearchResults(page = 1) {
     setState({ isLoading: true, error: null, currentPage: page, view: 'home' });
     startTimeout("Failed to fetch search results.");
     try {
-        const res = await fetch(`${API_BASE}search/${state.lastSearchQuery}?page=${page}`);
+        const res = await fetch(`${API_BASE}search?keyword=${state.lastSearchQuery}&page=${page}`);
         const data = await res.json();
-        setState({ searchResults: { results: data.results, hasNextPage: data.hasNextPage }, isLoading: false });
+        const hasNextPage = data.results.totalPages > page;
+        setState({ searchResults: { results: data.results.data, hasNextPage: hasNextPage }, isLoading: false });
     } catch (err) {
         console.error(err);
         setState({ error: 'Failed to fetch search results.', isLoading: false });
@@ -313,24 +289,22 @@ async function fetchSearchResults(page = 1) {
 }
 
 async function fetchAnimeDetails(animeId) {
-    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [] });
+    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, selectedEpisodeId: null });
     startTimeout("Failed to fetch anime details.");
     try {
-        const detailsRes = await fetch(`${API_BASE}info/${animeId}`);
+        const detailsRes = await fetch(`${API_BASE}info?id=${animeId}`);
         const detailsData = await detailsRes.json();
 
-        if (!detailsData.episodes || !Array.isArray(detailsData.episodes)) {
+        const episodesRes = await fetch(`${API_BASE}episodes/${animeId}`);
+        const episodesData = await episodesRes.json();
+
+        if (!episodesData.results || !Array.isArray(episodesData.results.episodes)) {
             throw new Error("Invalid episode data from API.");
         }
 
-        const availableSubServers = (detailsData.sub) ? SERVERS : [];
-        const availableDubServers = (detailsData.dub) ? SERVERS : [];
-
         setState({
-            animeDetails: detailsData,
-            animeEpisodes: detailsData.episodes,
-            availableSubServers: availableSubServers,
-            availableDubServers: availableDubServers,
+            animeDetails: detailsData.results.data,
+            animeEpisodes: episodesData.results.episodes,
             isLoading: false
         });
     } catch (err) {
@@ -347,24 +321,23 @@ async function handleServerSelection(episodeId, serverName, type) {
     setState({ isLoading: true, videoSrc: null, error: null });
     startTimeout(`Failed to load streaming source from ${serverName}.`);
     try {
-        const watchUrl = `${API_BASE}watch?episodeId=${episodeId}&server=${serverName}&type=${type}`;
+        // The episodeId from the button is already in the correct format
+        const watchUrl = `${API_BASE}stream?id=${episodeId}&server=${serverName}&type=${type}`;
         const watchRes = await fetch(watchUrl);
         const watchData = await watchRes.json();
 
-        if (!watchData.sources || watchData.sources.length === 0) {
-            throw new Error('Streaming sources not found.');
+        if (!watchData.results.streamingLink || !watchData.results.streamingLink.link.file) {
+            throw new Error('Streaming source not found.');
         }
 
-        const sourceUrl = watchData.sources[0].url;
-        const proxiedUrl = `${CORS_PROXY_URL}proxy?url=${encodeURIComponent(sourceUrl)}`;
+        const sourceUrl = watchData.results.streamingLink.link.file;
 
-        setState({ videoSrc: proxiedUrl, isLoading: false, error: null });
+        setState({ videoSrc: sourceUrl, isLoading: false, error: null });
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
     }
 }
-
 
 // --- Event Handlers ---
 function handleSearchInput(query) {
@@ -399,14 +372,14 @@ function handlePageChange(dir){
 
 async function fetchSearchSuggestions(query) {
   try {
-    const res = await fetch(`${API_BASE}search-suggestions/${query}`);
+    const res = await fetch(`${API_BASE}search/suggest?keyword=${query}`);
     const data = await res.json();
     if (data.results) {
+        // The new API returns objects with a 'title' property
         setState({ searchSuggestions: data.results });
     }
   } catch(err) {
     console.error("Failed to fetch search suggestions:", err);
-    // Do not set an error message in the UI for suggestions
   }
 }
 
