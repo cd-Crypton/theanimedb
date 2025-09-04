@@ -165,15 +165,10 @@ const renderPagination = () => {
 };
 
 const renderHome = () => {
-    const bannerContainer = document.getElementById('banner-container');
-    const searchBarContainer = document.getElementById('search-bar-container');
-    
-    searchBarContainer.innerHTML = SearchBar();
-    
+    document.getElementById('search-bar-container').innerHTML = SearchBar();
     let content = '';
     if (state.isLoading) {
         content = Spinner();
-        bannerContainer.innerHTML = '';
     } else if (state.searchResults) {
         content = `
         <section>
@@ -183,14 +178,12 @@ const renderHome = () => {
           </div>
           ${renderPagination()}
         </section>`;
-        bannerContainer.innerHTML = '';
     } else {
         const spotlightsContent = state.homeData.spotlights.length > 0 ? SpotlightBanner(state.homeData.spotlights) : '';
         const trendingContent = state.homeData.trending.length > 0 ? state.homeData.trending.map(anime => AnimeCard(anime)).join('') : '<p class="text-gray-400 col-span-full">No trending anime found.</p>';
         const recentContent = state.homeData.recent.length > 0 ? state.homeData.recent.map(anime => AnimeCard(anime)).join('') : '<p class="text-gray-400 col-span-full">No recent releases found.</p>';
-        
-        bannerContainer.innerHTML = spotlightsContent;
         content = `
+        ${spotlightsContent}
         <section class="mb-10">
           <h2 class="text-2xl font-bold text-white mb-4">Top Airing</h2>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">${trendingContent}</div>
@@ -212,7 +205,6 @@ const renderHome = () => {
 
 const renderDetails = () => {
     document.getElementById('search-bar-container').innerHTML = '';
-    document.getElementById('banner-container').innerHTML = ''; // Clear banner
     if (state.isLoading || !state.animeDetails) {
         mainContent.innerHTML = Spinner();
         return;
@@ -268,7 +260,6 @@ const renderDetails = () => {
 
 const renderCategoryPage = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
-    document.getElementById('banner-container').innerHTML = ''; // Clear banner
     let content = '';
     if (state.isLoading) {
         content = Spinner();
@@ -494,10 +485,6 @@ function handleGoHome() {
         availableDubServers: [],
         searchSuggestions: []
     });
-    // Clear banner and search bar when navigating away from home
-    document.getElementById('banner-container').innerHTML = '';
-    document.getElementById('search-bar-container').innerHTML = '';
-
     fetchHomeData();
     history.pushState({}, '', '/');
 }
