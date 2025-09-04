@@ -13,8 +13,35 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers': 'Content-Type, User-Agent, Referer',
         },
+      });
+    }
+
+    // Proxy for M3U8 streaming files
+    if (url.pathname.startsWith('/m3u8-proxy')) {
+      const targetUrl = url.searchParams.get('url');
+      const referer = url.searchParams.get('referer');
+
+      if (!targetUrl) {
+        return new Response('URL parameter is missing', { status: 400 });
+      }
+
+      // Fetch the m3u8 file with the correct Referer header
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Referer': referer || '',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        },
+      });
+      
+      const newHeaders = new Headers(response.headers);
+      newHeaders.set('Access-Control-Allow-Origin', '*');
+      
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders,
       });
     }
 

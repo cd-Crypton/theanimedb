@@ -394,20 +394,21 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
+        const iframeUrl = watchData.results.streamingLink.iframe; // The Referer URL
         const videoElement = document.getElementById('video-player');
 
-        // Construct the new external proxy URL
-        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
+        // Construct the proxy URL to be handled by our own worker
+        const proxyUrl = `/m3u8-proxy?url=${encodeURIComponent(sourceUrl)}&referer=${encodeURIComponent(iframeUrl)}`;
 
         if (Hls.isSupported()) {
             const hls = new Hls();
-            hls.loadSource(proxyUrl);
+            hls.loadSource(proxyUrl); // Use the new proxy URL
             hls.attachMedia(videoElement);
             hls.on(Hls.Events.MANIFEST_PARSED, function () {
                 videoElement.play();
             });
         } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            videoElement.src = proxyUrl;
+            videoElement.src = proxyUrl; // Also use proxy URL for native HLS
             videoElement.addEventListener('loadedmetadata', function () {
                 videoElement.play();
             });
