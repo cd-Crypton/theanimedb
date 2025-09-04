@@ -6,7 +6,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // Standard CORS preflight handling
+    // --- CORS Preflight ---
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
@@ -18,7 +18,44 @@ export default {
       });
     }
 
-    // Proxy API requests
+    // --- M3U8 Proxy Handling ---
+    if (url.pathname === '/m3u8-proxy') {
+      const targetUrl = url.searchParams.get('url');
+      if (!targetUrl) {
+        return new Response(JSON.stringify({ error: 'Missing ?url parameter' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+
+      try {
+        const response = await fetch(targetUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117 Safari/537.36',
+            'Referer': new URL(targetUrl).origin,
+          },
+        });
+
+        // Add CORS headers so Hls.js can read it
+        const headers = new Headers(response.headers);
+        headers.set('Access-Control-Allow-Origin', '*');
+        headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        headers.set('Access-Control-Allow-Headers', '*');
+
+        return new Response(response.body, {
+          status: response.status,
+          headers,
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: 'Failed to fetch stream', details: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+    }
+
+    // --- Proxy API Calls (/api/*) ---
     if (url.pathname.startsWith('/api/')) {
       const targetUrl = VERCEL_API_BASE + url.pathname + url.search;
       try {
@@ -38,7 +75,7 @@ export default {
       }
     }
 
-    // Serve static assets
+    // --- Static Assets ---
     try {
       return await env.ASSETS.fetch(request);
     } catch {
