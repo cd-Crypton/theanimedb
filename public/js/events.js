@@ -2,7 +2,7 @@ import { state, setState, MENU_ITEMS } from './state.js';
 import { fetchHomeData, fetchCategoryResults, fetchSearchResults, fetchSearchSuggestions, fetchAnimeDetails } from './api.js';
 import { renderHome, renderDetails, renderCategoryPage } from './ui.js';
 
-const player = null;
+const PROXY_URL = 'https://theanimedbproxy.vercel.app/';
 
 // --- Event Handlers ---
 export function handleSearchInput(query) {
@@ -40,16 +40,11 @@ export function handlePageChange(dir) {
 
 export function handleSelectAnime(animeId) {
     state.selectedAnimeId = animeId;
-    // Update the URL without reloading the page
     history.pushState({ animeId: animeId }, '', `/anime/${animeId}`);
     fetchAnimeDetails(animeId);
 }
 
 export function handleGoHome() {
-    if (player && !player.isDisposed()) {
-        player.dispose();
-        player = null;
-    }
     setState({
         view: 'home',
         searchResults: null,
@@ -67,7 +62,61 @@ export function handleGoHome() {
     history.pushState({}, '', '/');
 }
 
-// --- New Menu Logic ---
+export async function handleEpisodeSelection(episodeId) {
+    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, error: null, availableSubServers: [], availableDubServers: [] });
+    try {
+        const serversRes = await fetch(`https://crypton-api.vercel.app/api/servers/${episodeId.split('?ep=')[0]}?ep=${episodeId.split('?ep=')[1]}`);
+        const serversData = await serversRes.json();
+        if (!serversData.results || !Array.isArray(serversData.results)) throw new Error("Invalid server data from API.");
+        const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
+        const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
+        setState({ availableSubServers: subServers, availableDubServers: dubServers, isLoading: false });
+    } catch (err) {
+        console.error(err);
+        setState({ error: `Failed to fetch servers: ${err.message}`, isLoading: false });
+    }
+}
+
+export async function handleServerSelection(event, episodeId, serverName, type) {
+    const serverContainer = document.getElementById('server-selection-container');
+    if (serverContainer) {
+        serverContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active-server'));
+        event.target.classList.add('active-server');
+    }
+    try {
+        const player = videojs('video-player');
+        if (player && !player.isDisposed()) {
+            player.loadingSpinner.show();
+            player.error(null);
+        }
+        const watchUrl = `https://crypton-api.vercel.app/api/stream?id=${episodeId}&server=${serverName}&type=${type}`;
+        const watchRes = await fetch(watchUrl);
+        const watchData = await watchRes.json();
+        if (!watchData.results?.streamingLink?.link?.file) throw new Error('Streaming source not found for this server.');
+        const sourceUrl = watchData.results.streamingLink.link.file;
+        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
+        if (player && !player.isDisposed()) {
+            player.on('error', () => {
+                const error = player.error();
+                console.error('Video.js Player Error:', error);
+                player.error({ code: 4, message: `The stream from ${serverName} failed to load. Please try another server.` });
+            });
+            player.src({ src: proxyUrl, type: 'application/x-mpegURL' });
+            player.one('loadedmetadata', () => {
+                player.loadingSpinner.hide();
+                player.play().catch(err => { console.error("Video.js play failed:", err); player.error({ code: 4, message: "Playback was prevented by the browser." }) });
+            });
+        }
+    } catch (err) {
+        console.error(err);
+        const player = videojs('video-player');
+        if (player && !player.isDisposed()) {
+            player.error({ code: 4, message: err.message });
+        }
+    }
+}
+
+// --- Menu Logic ---
 export function toggleMenu(show) {
     const menu = document.getElementById('side-menu');
     const overlay = document.getElementById('side-menu-overlay');

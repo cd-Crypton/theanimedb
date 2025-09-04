@@ -1,8 +1,8 @@
-import { state, setState } from './state.js';
-import { handleSearchInput, handleSearchSubmit, handlePageChange, handleSelectAnime, handleGoHome, handleEpisodeSelection } from './events.js';
+import { state } from './state.js';
+import { handleSearchInput, handleSearchSubmit, handlePageChange, handleSelectAnime, handleGoHome, handleEpisodeSelection, handleServerSelection } from './events.js';
 
 const mainContent = document.getElementById('main-content');
-const player = null;
+let player = null;
 
 // --- Render Helpers ---
 export const Spinner = () => `
