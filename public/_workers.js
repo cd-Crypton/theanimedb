@@ -16,6 +16,17 @@ const createCorsResponse = (body, options) => {
     return new Response(body, responseOptions);
 };
 
+// Function to handle fetching from the target URL
+const fetchTarget = (urlString) => {
+    const url = new URL(urlString);
+    return fetch(url.toString(), {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117 Safari/537.36',
+            'Referer': url.origin,
+        },
+    });
+};
+
 export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
@@ -32,57 +43,65 @@ export default {
             });
         }
 
-        // --- M3U8 and TS Proxy Handling ---
-        if (url.pathname === '/m3u8-proxy' || url.pathname === '/ts-proxy') {
+        // --- M3U8 Playlist Proxy ---
+        if (url.pathname === '/m3u8-proxy') {
             const targetUrlString = url.searchParams.get('url');
             if (!targetUrlString) {
                 return createCorsResponse(JSON.stringify({ error: 'Missing ?url parameter' }), { status: 400 });
             }
 
             try {
-                const targetUrl = new URL(targetUrlString);
-                const response = await fetch(targetUrl.toString(), {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117 Safari/537.36',
-                        'Referer': targetUrl.origin,
-                    },
-                });
+                const response = await fetchTarget(targetUrlString);
+                let manifestText = await response.text();
+                const baseUrl = new URL('.', targetUrlString).toString();
 
-                // If it's a video segment (.ts), stream it directly with the correct Content-Type
-                if (targetUrl.pathname.endsWith('.ts')) {
-                    const headers = new Headers(response.headers);
-                    headers.set('Content-Type', 'video/mp2t'); // Explicitly set Content-Type
-                    return createCorsResponse(response.body, { status: response.status, headers: headers });
-                }
-
-                // If it's a manifest file (.m3u8), rewrite its content
-                if (targetUrl.pathname.endsWith('.m3u8')) {
-                    let manifestText = await response.text();
-
-                    const baseUrl = new URL('.', targetUrl).toString();
-                    const proxyBaseUrl = `${url.origin}${url.pathname}`;
-
-                    // Rewrite segment URLs to go through the proxy
-                    const rewrittenManifest = manifestText.split('\n').map(line => {
-                        line = line.trim();
-                        if (line && !line.startsWith('#')) {
-                            const absoluteUrl = new URL(line, baseUrl).toString();
-                            return `${proxyBaseUrl}?url=${encodeURIComponent(absoluteUrl)}`;
+                // Rewrite segment and key URLs to go through the /ts-proxy
+                const rewrittenManifest = manifestText.split('\n').map(line => {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine && !trimmedLine.startsWith('#')) {
+                        const absoluteUrl = new URL(trimmedLine, baseUrl).toString();
+                        return `${url.origin}/ts-proxy?url=${encodeURIComponent(absoluteUrl)}`;
+                    }
+                    if (trimmedLine.startsWith('#EXT-X-KEY')) {
+                        const uriMatch = trimmedLine.match(/URI="([^"]+)"/);
+                        if (uriMatch && uriMatch[1]) {
+                           const keyUrl = new URL(uriMatch[1], baseUrl).toString();
+                           const proxiedKeyUrl = `${url.origin}/ts-proxy?url=${encodeURIComponent(keyUrl)}`;
+                           return trimmedLine.replace(uriMatch[1], proxiedKeyUrl);
                         }
-                        return line;
-                    }).join('\n');
-                    
-                    const headers = new Headers(response.headers);
-                    headers.set('Content-Type', 'application/vnd.apple.mpegurl');
-
-                    return createCorsResponse(rewrittenManifest, { status: response.status, headers });
-                }
+                    }
+                    return line;
+                }).join('\n');
                 
-                // Fallback for any other file type, just pass it through
-                return createCorsResponse(response.body, { status: response.status, headers: response.headers });
+                const headers = new Headers(response.headers);
+                headers.set('Content-Type', 'application/vnd.apple.mpegurl');
+                return createCorsResponse(rewrittenManifest, { status: response.status, headers });
 
             } catch (err) {
-                return createCorsResponse(JSON.stringify({ error: 'Failed to fetch stream', details: err.message }), { status: 500 });
+                return createCorsResponse(JSON.stringify({ error: 'Failed to fetch manifest', details: err.message }), { status: 500 });
+            }
+        }
+
+        // --- TS Segment and Key Proxy ---
+        if (url.pathname === '/ts-proxy') {
+            const targetUrlString = url.searchParams.get('url');
+            if (!targetUrlString) {
+                return createCorsResponse(JSON.stringify({ error: 'Missing ?url parameter' }), { status: 400 });
+            }
+
+            try {
+                const response = await fetchTarget(targetUrlString);
+                const headers = new Headers(response.headers);
+                
+                // Set appropriate Content-Type for video segments
+                if (targetUrlString.endsWith('.ts')) {
+                    headers.set('Content-Type', 'video/mp2t');
+                }
+                
+                return createCorsResponse(response.body, { status: response.status, headers: headers });
+
+            } catch (err) {
+                return createCorsResponse(JSON.stringify({ error: 'Failed to fetch segment/key', details: err.message }), { status: 500 });
             }
         }
 

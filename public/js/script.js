@@ -397,55 +397,44 @@ async function handleServerSelection(episodeId, serverName, type) {
 
         const sourceUrl = watchData.results.streamingLink.link.file;
         const videoElement = document.getElementById('video-player');
+        // The initial request to the proxy is now for the manifest file
+        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
 
-        const tryLoadSource = (proxyPath) => {
-            return new Promise((resolve, reject) => {
-                const proxyUrl = `${PROXY_URL}${proxyPath}?url=${encodeURIComponent(sourceUrl)}`;
+        // Destroy previous HLS instance (if exists)
+        if (hls) {
+            hls.destroy();
+            hls = null;
+        }
 
-                if (hls) {
-                    hls.destroy();
-                }
+        // Play using Hls.js or native HLS support
+        if (window.Hls && Hls.isSupported()) {
+            hls = new Hls({ debug: false });
+            hls.loadSource(proxyUrl);
+            hls.attachMedia(videoElement);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                videoElement.play().catch(console.error);
+            });
 
-                if (window.Hls && Hls.isSupported()) {
-                    hls = new Hls({ debug: false });
-                    hls.loadSource(proxyUrl);
-                    hls.attachMedia(videoElement);
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        videoElement.play().catch(console.error);
-                        setState({ videoSrc: proxyUrl, isLoading: false, error: null });
-                        resolve();
-                    });
-
-                    hls.on(Hls.Events.ERROR, (event, data) => {
-                        console.error('HLS error:', data);
-                        if (data.fatal) {
-                           hls.destroy();
-                           reject(new Error(`Playback error: ${data.type}`));
-                        }
-                    });
-                } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                    videoElement.src = proxyUrl;
-                    videoElement.addEventListener('loadedmetadata', () => {
-                         videoElement.play().catch(console.error);
-                    });
-                     setState({ videoSrc: proxyUrl, isLoading: false, error: null });
-                     resolve();
-                } else {
-                    reject(new Error('HLS not supported on this browser.'));
+            // Handle HLS errors gracefully
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                console.error('HLS error:', data);
+                if (data.fatal) {
+                   setState({ error: `Playback error: ${data.type}`, isLoading: false });
                 }
             });
-        };
 
-        try {
-            await tryLoadSource('m3u8-proxy');
-        } catch (m3u8Error) {
-            console.warn('m3u8-proxy failed, trying ts-proxy fallback.', m3u8Error);
-            try {
-                await tryLoadSource('ts-proxy');
-            } catch (tsError) {
-                console.error('Both m3u8 and ts proxies failed.', tsError);
-                throw tsError;
-            }
+            setState({ videoSrc: proxyUrl, isLoading: false, error: null });
+
+        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari supports HLS natively
+            videoElement.src = proxyUrl;
+            videoElement.addEventListener('loadedmetadata', () => {
+                videoElement.play().catch(console.error);
+            });
+            setState({ videoSrc: proxyUrl, isLoading: false, error: null });
+
+        } else {
+            throw new Error('HLS not supported on this browser.');
         }
 
     } catch (err) {
