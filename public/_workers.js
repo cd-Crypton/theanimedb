@@ -12,14 +12,14 @@ export default {
         status: 204,
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Access-Control-Allow-Headers': '*',
         },
       });
     }
 
-    // --- M3U8 Proxy Handling ---
-    if (url.pathname === '/m3u8-proxy') {
+    // --- M3U8 and TS Proxy Handling ---
+    if (url.pathname === '/m3u8-proxy' || url.pathname === '/ts-proxy') {
       const targetUrl = url.searchParams.get('url');
       if (!targetUrl) {
         return new Response(JSON.stringify({ error: 'Missing ?url parameter' }), {
@@ -40,7 +40,7 @@ export default {
         // Add CORS headers so Hls.js can read it
         const headers = new Headers(response.headers);
         headers.set('Access-Control-Allow-Origin', '*');
-        headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        headers.set('Access-Control-Allow-Methods', '*');
         headers.set('Access-Control-Allow-Headers', '*');
 
         return new Response(response.body, {
