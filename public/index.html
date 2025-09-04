@@ -13,15 +13,19 @@
     }
   </script>
   
+  <!-- Video.js CSS -->
   <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
   
+  <!-- Add the "City" Theme CSS -->
   <link href="https://unpkg.com/@videojs/themes@1/dist/city/index.css" rel="stylesheet"/>
 
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans">
 
+  <!-- Side Menu (Initially Hidden) -->
   <div id="side-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+  <!-- I have changed z-50 to z-[60] to ensure the menu overlaps the header -->
   <div id="side-menu" class="fixed top-0 left-0 w-64 h-full bg-gray-800 z-[60] transform -translate-x-full transition-transform duration-300 ease-in-out">
     <div class="p-4">
       <div class="flex justify-between items-center mb-6">
@@ -37,15 +41,18 @@
   </div>
 
   <div id="app" class="p-4 sm:p-6 lg:p-8 pt-0">
+    <!-- Header is now fixed at the top, a bg color is added to ensure content doesn't show through -->
     <header class="p-2 fixed top-0 w-full z-50 bg-gray-900">
+      <!-- The pr-4 class ensures a consistent right padding for content -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pr-4">
         <div class="flex items-center gap-4">
+          <!-- Burger Menu Button -->
           <button id="menu-toggle-btn" class="text-white p-2 rounded-md hover:bg-gray-700">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
             </svg>
           </button>
-          <div class="flex flex-col items-center sm:items-start min-w-0"> 
+          <div class="flex flex-col items-center sm:items-start min-w-0 cursor-pointer" onclick="handleGoHome()"> 
               <h1 class="text-2xl sm:text-3xl font-extrabold leading-none">
                   <span class="text-white">TheAnime</span><span class="text-blue-500">DB</span>
               </h1>
@@ -57,6 +64,7 @@
       </div>
     </header>
 
+    <!-- Margin is added to the main content to prevent it from being hidden under the fixed header -->
     <main id="main-content" class="mt-20">
       </main>
 
