@@ -49,7 +49,7 @@ const ErrorDisplay = (message, showBackButton = false) => {
 };
 
 const SearchBar = () => `
-<form id="search-form" class="w-full max-w-2xl mx-auto">
+<form id="search-form" class="w-full">
   <div class="relative">
     <input type="search" id="search-input" placeholder="Search for an anime..."
       class="w-full p-4 pr-12 text-lg text-white bg-gray-800 border-2 border-gray-700 rounded-full focus:outline-none focus:border-blue-500 transition-colors"

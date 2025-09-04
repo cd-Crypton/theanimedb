@@ -22,15 +22,19 @@
 <body class="bg-gray-900 text-gray-100 font-sans">
   <div id="app" class="p-4 sm:p-6 lg:p-8">
     <header class="mb-8 p-4">
-      <div class="flex items-center justify-between">
-        <div class="flex flex-col items-start min-w-0"> 
-            <h1 class="text-3xl md:text-4xl font-extrabold leading-none">
+      <!-- On small screens: stack vertically. On small screens and up: horizontal row -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <!-- On small screens: center items. On small screens and up: align left -->
+        <div class="flex flex-col items-center sm:items-start min-w-0"> 
+            <!-- Responsive text sizes for the title -->
+            <h1 class="text-2xl sm:text-3xl font-extrabold leading-none">
                 <span class="text-white">TheAnime</span><span class="text-blue-500">DB</span>
             </h1>
-            <p class="text-gray-500 text-xs md:text-sm mt-1">Your Anime Database</p>
+            <p class="text-gray-500 text-xs sm:text-sm mt-1">Your Anime Database</p>
         </div>
         
-        <div id="search-bar-container" class="flex-grow flex justify-end max-w-sm md:max-w-md ml-4">
+        <!-- On small screens: full width. On small screens and up: auto width with a responsive max-width -->
+        <div id="search-bar-container" class="w-full sm:w-auto sm:max-w-xs md:max-w-sm">
           </div>
       </div>
     </header>
