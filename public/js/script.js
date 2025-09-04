@@ -166,15 +166,19 @@ const renderDetails = () => {
     }
 
     let videoPlayerHtml = '';
-    if (state.videoSrc) {
+    if (state.selectedEpisodeId) { // Show player area if an episode is selected
         videoPlayerHtml = `
             <div class="flex justify-center mb-8">
                 <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
-                    <video controls class="w-full h-full" src="${state.videoSrc}" type="video/mp4"></video>
+                    <video id="video-player" controls class="w-full h-full"></video>
                 </div>
             </div>
         `;
-    } else if (state.selectedEpisodeId) {
+    }
+    
+    // Server selection buttons will now appear below the player area
+    let serverSelectionHtml = '';
+    if(state.selectedEpisodeId && !state.videoSrc) {
         const subServerButtonsHtml = SERVERS.map(server => `
             <button onclick="handleServerSelection('${state.selectedEpisodeId}', '${server}', 'sub')" 
                     class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
@@ -188,16 +192,15 @@ const renderDetails = () => {
                 ${server}
             </button>
         `).join('');
-
-        videoPlayerHtml = `
+        
+        serverSelectionHtml = `
             <div class="mb-8">
                 <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
                 <h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4>
                 <div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>
                 <h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4>
                 <div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>
-            </div>
-        `;
+            </div>`;
     }
 
     const content = `
@@ -244,6 +247,7 @@ const renderDetails = () => {
         
         <div class="mt-8">
             ${videoPlayerHtml}
+            ${serverSelectionHtml}
             ${state.error ? ErrorDisplay(state.error, state.isLoading === false) : ''}
             <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
             ${episodeListHtml}
@@ -355,10 +359,10 @@ async function handleEpisodeSelection(episodeId) {
 }
 
 async function handleServerSelection(episodeId, serverName, type) {
-    setState({ isLoading: true, videoSrc: null, error: null });
+    setState({ isLoading: true, videoSrc: null, error: null }); // Clear previous videoSrc
     startTimeout(`Failed to load streaming source from ${serverName}.`);
+    
     try {
-        // The episodeId from the button is already in the correct format
         const watchUrl = `${API_BASE}stream?id=${episodeId}&server=${serverName}&type=${type}`;
         const watchRes = await fetch(watchUrl);
         const watchData = await watchRes.json();
@@ -368,8 +372,25 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
+        const videoElement = document.getElementById('video-player');
 
+        if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(sourceUrl);
+            hls.attachMedia(videoElement);
+            hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                videoElement.play();
+            });
+        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+            // Native HLS support (mainly on Safari)
+            videoElement.src = sourceUrl;
+            videoElement.addEventListener('loadedmetadata', function () {
+                videoElement.play();
+            });
+        }
+        
         setState({ videoSrc: sourceUrl, isLoading: false, error: null });
+
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
