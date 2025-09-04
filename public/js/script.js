@@ -27,6 +27,8 @@ let state = {
 // --- API Base URL pointing to the new instance ---
 const API_BASE = 'https://crypton-api.vercel.app/api/';
 
+const SERVERS = ['vidcloud', 'megacloud'];
+
 // --- Render Helpers ---
 const Spinner = () => `
 <div class="flex justify-center items-center h-full w-full py-16">
@@ -264,7 +266,6 @@ const renderDetails = () => {
         <div class="mt-8">
             ${videoPlayerHtml}
             ${serverSelectionHtml}
-            ${state.error ? ErrorDisplay(state.error) : ''}
             <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
             ${episodeListHtml}
         </div>
@@ -293,23 +294,15 @@ const setState = (newState) => {
 async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
     try {
-        const [spotlightsRes, topAiringRes, recentlyUpdatedRes] = await Promise.all([
-            fetch(`${API_BASE}spotlights`),
-            fetch(`${API_BASE}top-airing`),
-            fetch(`${API_BASE}recently-updated`)
-        ]);
-
-        if (!spotlightsRes.ok || !topAiringRes.ok || !recentlyUpdatedRes.ok) {
-            throw new Error('Failed to fetch home page data');
+        const response = await fetch(`${API_BASE}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch home page data: ${response.statusText}`);
         }
+        const data = await response.json();
 
-        const spotlightsData = await spotlightsRes.json();
-        const topAiringData = await topAiringRes.json();
-        const recentlyUpdatedData = await recentlyUpdatedRes.json();
-
-        const spotlights = spotlightsData.results.spotlights || [];
-        const trending = topAiringData.results.data || [];
-        const recent = recentlyUpdatedData.results.data || [];
+        const spotlights = data.results.spotlights || [];
+        const trending = data.results.topAiring || [];
+        const recent = data.results.latestEpisode || [];
         
         setState({ homeData: { spotlights, trending, recent }, isLoading: false });
     } catch (err) {
