@@ -1,8 +1,8 @@
 // --- App Logic ---
 const PROXY_URL = 'https://theanimedbproxy.vercel.app/';
 const mainContent = document.getElementById('main-content');
-let hls;
-let player = null; // To hold the video.js player instance
+// The global player instance is now for Video.js
+let player = null; 
 
 // --- State Management ---
 let state = {
@@ -258,6 +258,15 @@ const renderDetails = () => {
     `;
 
     mainContent.innerHTML = content;
+
+    // If a video player is supposed to be on the page, initialize it.
+    if (document.getElementById('video-player')) {
+        // Dispose of the old player if it exists, to prevent memory leaks
+        if (player) {
+            player.dispose();
+        }
+        player = videojs('video-player');
+    }
 };
 
 // --- App Logic ---
@@ -396,46 +405,23 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
-        const videoElement = document.getElementById('video-player');
-        // The initial request to the proxy is now for the manifest file
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
 
-        // Destroy previous HLS instance (if exists)
-        if (hls) {
-            hls.destroy();
-            hls = null;
+        // Use the Video.js API to set the source
+        if (player) {
+            player.src({
+                src: proxyUrl,
+                type: 'application/x-mpegURL' // Specify the content type for HLS
+            });
+            player.ready(() => {
+                player.play().catch(err => {
+                    console.error("Video.js play failed:", err);
+                    setState({ error: 'Playback failed. Please try another server.', isLoading: false });
+                });
+            });
         }
 
-        // Play using Hls.js or native HLS support
-        if (window.Hls && Hls.isSupported()) {
-            hls = new Hls({ debug: false });
-            hls.loadSource(proxyUrl);
-            hls.attachMedia(videoElement);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                videoElement.play().catch(console.error);
-            });
-
-            // Handle HLS errors gracefully
-            hls.on(Hls.Events.ERROR, (event, data) => {
-                console.error('HLS error:', data);
-                if (data.fatal) {
-                   setState({ error: `Playback error: ${data.type}`, isLoading: false });
-                }
-            });
-
-            setState({ videoSrc: proxyUrl, isLoading: false, error: null });
-
-        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            // Safari supports HLS natively
-            videoElement.src = proxyUrl;
-            videoElement.addEventListener('loadedmetadata', () => {
-                videoElement.play().catch(console.error);
-            });
-            setState({ videoSrc: proxyUrl, isLoading: false, error: null });
-
-        } else {
-            throw new Error('HLS not supported on this browser.');
-        }
+        setState({ videoSrc: proxyUrl, isLoading: false, error: null });
 
     } catch (err) {
         console.error(err);
@@ -495,10 +481,10 @@ function handleSelectAnime(animeId){
 }
 
 function handleGoHome(){
-    // Add these lines to destroy the HLS instance
-    if (hls) {
-        hls.destroy();
-        hls = null;
+    // When leaving the details page, properly dispose of the player
+    if (player) {
+        player.dispose();
+        player = null;
     }
     setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [], searchSuggestions: [] });
     fetchHomeData();
