@@ -1,3 +1,8 @@
+// --- App Logic ---
+const PROXY_URL = 'https://proxy.shoko.fun/';
+const mainContent = document.getElementById('main-content');
+// ... rest of your script
+
 const mainContent = document.getElementById('main-content');
 
 // --- State Management ---
@@ -392,11 +397,10 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
-        const iframeUrl = watchData.results.streamingLink.iframe;
         const videoElement = document.getElementById('video-player');
 
-        // Construct the proxy URL with the specified endpoint
-        const proxyUrl = `/m3u8-proxy?url=${encodeURIComponent(sourceUrl)}&referer=${encodeURIComponent(iframeUrl)}`;
+        // Construct the new external proxy URL
+        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
 
         if (Hls.isSupported()) {
             const hls = new Hls();
