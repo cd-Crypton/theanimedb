@@ -128,13 +128,12 @@ export default {
         }
 
         // --- SPA Fallback ---
-        let response = await env.ASSETS.fetch(request);
-        
-        // If the response is a 500, serve the SPA entry point
-        if (response.status === 500) {
-            response = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+        try {
+            return await env.ASSETS.fetch(request);
+        } catch (e) {
+            // The worker crashed while trying to find a static file,
+            // so explicitly serve the SPA entry point.
+            return env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
         }
-
-        return response;
     },
 };
