@@ -52,13 +52,13 @@ const SearchBar = () => `
 <form id="search-form" class="w-full">
   <div class="relative flex items-center gap-2">
 
-    {/* Search Input */}
+    <!-- Search Input -->
     <input type="search" id="search-input" placeholder="Search for an anime..."
       class="flex-grow w-full p-4 text-lg text-white bg-gray-800 border-2 border-gray-700 rounded-full focus:outline-none focus:border-blue-500 transition-colors"
       oninput="handleSearchInput(this.value)"
       ${state.isLoading ? 'disabled' : ''} />
 
-    {/* Search Button */}
+    <!-- Search Button -->
     <button type="submit" ${state.isLoading ? 'disabled' : ''}
       class="flex-shrink-0 bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
       <span class="sr-only">Search</span>
