@@ -105,25 +105,31 @@ export default {
 
         // --- Proxy API Calls (/api/*) ---
         if (url.pathname.startsWith('/api/')) {
-            const targetUrl = VERCEL_API_BASE + url.pathname + url.search;
-            try {
-                const response = await fetch(targetUrl, {
+            const cacheUrl = new URL(request.url);
+            const cacheKey = new Request(cacheUrl.toString(), request);
+            const cache = caches.default;
+
+            // Check the cache for a match before fetching
+            let response = await cache.match(cacheKey);
+            if (!response) {
+                // If not in cache, fetch from the origin API
+                const targetUrl = VERCEL_API_BASE + url.pathname + url.search;
+                response = await fetch(targetUrl, {
                     headers: { 'User-Agent': 'TheAnimeDB (via Cloudflare Worker)' },
                 });
 
-                const data = await response.json();
-                const headers = new Headers(response.headers);
-                headers.set('Content-Type', 'application/json');
-                
-                return createCorsResponse(JSON.stringify(data), {
-                    status: response.status,
-                    headers: headers
-                });
-            } catch (err) {
-                return createCorsResponse(JSON.stringify({ error: 'Proxy failed', details: err.message }), {
-                    status: 500
-                });
+                // Add a Cache-Control header to specify the cache duration
+                response = new Response(response.body, response);
+                response.headers.set('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+
+                // Put the response in the cache
+                ctx.waitUntil(cache.put(cacheKey, response.clone()));
             }
+
+            return createCorsResponse(response.body, {
+                status: response.status,
+                headers: response.headers
+            });
         }
         
         // --- Final Fallback for SPA Routing ---
