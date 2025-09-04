@@ -291,7 +291,28 @@ async function fetchHomeData() {
         const spotlights = data.results.spotlights || [];
         const trending = data.results.topAiring || [];
         const recent = data.results.latestEpisode || [];
-        setState({ homeData: { spotlights, trending, recent }, isLoading: false });
+
+        // Fetch detailed info for each spotlight concurrently
+        const spotlightDetailsPromises = spotlights.map(async (anime) => {
+            try {
+                const detailsRes = await fetch(`${API_BASE}/info?id=${anime.id}`);
+                if (!detailsRes.ok) throw new Error('Failed to fetch details');
+                const detailsData = await detailsRes.json();
+                // Merge detailed info into the spotlight object
+                return {
+                    ...anime,
+                    showType: detailsData.results.data.showType,
+                    genres: detailsData.results.data.animeInfo.Genres,
+                };
+            } catch (err) {
+                console.error(`Failed to fetch details for anime ID ${anime.id}:`, err);
+                return anime; // Return original object if fetch fails
+            }
+        });
+
+        const detailedSpotlights = await Promise.all(spotlightDetailsPromises);
+
+        setState({ homeData: { spotlights: detailedSpotlights, trending, recent }, isLoading: false });
     } catch (err) {
         console.error(err);
         setState({ error: 'Could not load home anime data.', isLoading: false });
@@ -439,7 +460,7 @@ const handleInitialRoute = () => {
     if (path.startsWith('/anime/')) {
         const animeId = path.replace('/anime/', '');
         if (animeId) {
-            handleSelectAnime(animeId);
+            fetchAnimeDetails(animeId);
         } else {
             handleGoHome();
         }
@@ -452,7 +473,7 @@ const handleInitialRoute = () => {
             handleGoHome();
         }
     } else {
-        handleGoHome();
+        fetchHomeData();
     }
 };
 
