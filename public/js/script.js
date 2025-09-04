@@ -198,7 +198,7 @@ const renderDetails = () => {
         `).join('');
         
         serverSelectionHtml = `
-            <div class="mb-8">
+            <div class="mb-8" id="server-selection-container">
                 <h3 class="text-xl font-bold text-white mb-2">Select a Server:</h3>
                 ${subServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4><div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>` : ''}
                 ${dubServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4><div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>` : ''}
@@ -262,7 +262,7 @@ const renderDetails = () => {
     // If a video player is supposed to be on the page, initialize it.
     if (document.getElementById('video-player')) {
         // Dispose of the old player if it exists, to prevent memory leaks
-        if (player) {
+        if (player && !player.isDisposed()) {
             player.dispose();
         }
         player = videojs('video-player');
@@ -270,12 +270,17 @@ const renderDetails = () => {
 };
 
 // --- App Logic ---
-const setState = (newState) => {
+const setState = (newState, options = {}) => {
     state = { ...state, ...newState };
     // Clear existing timeout if it's active
     if (state.timeoutId) {
         clearTimeout(state.timeoutId);
         state.timeoutId = null;
+    }
+
+    // This option prevents the UI from re-rendering, avoiding the player destruction bug.
+    if (options.preventRender) {
+        return;
     }
 
     if (state.view === 'home') {
@@ -289,7 +294,10 @@ const startTimeout = (message) => {
     // Set a new timeout and store its ID
     const timeoutId = setTimeout(() => {
         // Re-enable server buttons on timeout
-        document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = false);
+        const serverContainer = document.getElementById('server-selection-container');
+        if (serverContainer) {
+            serverContainer.querySelectorAll('button').forEach(button => button.disabled = false);
+        }
         setState({
             isLoading: false,
             error: `Request timed out. ${message || ''}`.trim(),
@@ -393,8 +401,11 @@ async function handleEpisodeSelection(episodeId) {
 }
 
 async function handleServerSelection(episodeId, serverName, type) {
-    document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = true);
-    setState({ isLoading: true, videoSrc: null, error: null });
+    const serverContainer = document.getElementById('server-selection-container');
+    if (serverContainer) {
+        serverContainer.querySelectorAll('button').forEach(button => button.disabled = true);
+    }
+    setState({ isLoading: true, videoSrc: null, error: null }, { preventRender: true }); // Prevent re-render
     startTimeout(`Failed to load streaming source from ${serverName}.`);
 
     try {
@@ -409,15 +420,13 @@ async function handleServerSelection(episodeId, serverName, type) {
         const sourceUrl = watchData.results.streamingLink.link.file;
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
 
-        if (player) {
+        if (player && !player.isDisposed()) {
             // Add a specific error handler to the player instance
             player.on('error', () => {
                 const error = player.error();
                 console.error('Video.js Player Error:', error);
-                // Clear the timeout and show an error
                 if (state.timeoutId) clearTimeout(state.timeoutId);
-                setState({ error: `Playback error: ${error.message}. Please try another server.`, isLoading: false });
-                document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = false);
+                setState({ error: `Playback error: ${error.message}. Please try another server.` });
             });
 
             // Set the new source
@@ -428,20 +437,21 @@ async function handleServerSelection(episodeId, serverName, type) {
 
             // When the player has enough data to start, try to play it
             player.one('loadedmetadata', () => {
-                // The video has loaded successfully, so clear the timeout
-                if (state.timeoutId) clearTimeout(state.timeoutId);
-                setState({ videoSrc: proxyUrl, isLoading: false, error: null });
+                // The video has loaded successfully, so update state without re-rendering
+                setState({ videoSrc: proxyUrl, isLoading: false, error: null }, { preventRender: true });
+                // Hide the server selection container manually
+                if (serverContainer) serverContainer.style.display = 'none';
+                
                 player.play().catch(err => {
                     console.error("Video.js play failed:", err);
+                    setState({ error: 'Browser prevented autoplay. Please click play.' });
                 });
             });
         }
     } catch (err) {
         console.error(err);
-        // Clear timeout on general failure and show error
         if (state.timeoutId) clearTimeout(state.timeoutId);
-        setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
-        document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = false);
+        setState({ error: `Failed to load episode: ${err.message}` });
     }
 }
 
@@ -496,7 +506,7 @@ function handleSelectAnime(animeId){
 
 function handleGoHome(){
     // When leaving the details page, properly dispose of the player
-    if (player) {
+    if (player && !player.isDisposed()) {
         player.dispose();
         player = null;
     }
