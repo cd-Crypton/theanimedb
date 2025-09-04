@@ -1,54 +1,16 @@
-// --- App Logic ---
-const PROXY_URL = 'https://theanimedbproxy.vercel.app/';
+import { state, setState } from './state.js';
+import { handleSearchInput, handleSearchSubmit, handlePageChange, handleSelectAnime, handleGoHome, handleEpisodeSelection } from './events.js';
+
 const mainContent = document.getElementById('main-content');
-// The global player instance is now for Video.js
-let player = null;
-
-// --- State Management ---
-let state = {
-    view: 'home', // 'home', 'details', or 'category'
-    homeData: { trending: [], recent: [], spotlights: [] },
-    searchResults: null,
-    categoryResults: null,
-    currentCategoryTitle: null,
-    currentCategoryEndpoint: null,
-    searchSuggestions: [],
-    lastSearchQuery: '',
-    currentPage: 1,
-    currentSpotlightIndex: 0,
-    selectedAnimeId: null,
-    animeDetails: null,
-    animeEpisodes: [],
-    selectedEpisodeId: null,
-    availableSubServers: [],
-    availableDubServers: [],
-    videoSrc: null,
-    isLoading: true,
-    error: null,
-};
-
-// --- API Base URL pointing to the new instance ---
-const API_BASE = 'https://crypton-api.vercel.app/api';
-
-const MENU_ITEMS = [
-    { title: 'Home', endpoint: 'home' },
-    { title: 'Movies', endpoint: '/movie' },
-    { title: 'TV Series', endpoint: '/tv' },
-    { title: 'Subbed Anime', endpoint: '/subbed-anime' },
-    { title: 'Dubbed Anime', endpoint: '/dubbed-anime' },
-    { title: 'Completed', endpoint: '/completed' },
-    { title: 'Special', endpoint: '/special' },
-    { title: 'OVA', endpoint: '/ova' },
-    { title: 'ONA', endpoint: '/ona' },
-];
+const player = null;
 
 // --- Render Helpers ---
-const Spinner = () => `
+export const Spinner = () => `
 <div class="flex justify-center items-center h-full w-full py-16">
   <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
 </div>`;
 
-const ErrorDisplay = (message, showBackButton = false) => {
+export const ErrorDisplay = (message, showBackButton = false) => {
     let backButton = '';
     if (showBackButton) {
         backButton = `<button onclick="handleGoHome()" class="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">Go Back</button>`;
@@ -61,7 +23,7 @@ const ErrorDisplay = (message, showBackButton = false) => {
     </div>`;
 };
 
-const SpotlightBanner = (spotlights) => {
+export const SpotlightBanner = (spotlights) => {
     if (!spotlights || spotlights.length === 0) return '';
 
     const slides = spotlights.map((anime, index) => {
@@ -98,7 +60,7 @@ const SpotlightBanner = (spotlights) => {
     `;
 };
 
-const SearchBar = () => `
+export const SearchBar = () => `
 <form id="search-form" class="w-full">
   <div class="relative flex items-center gap-2">
     <input type="search" id="search-input" placeholder="Search for an anime..."
@@ -125,7 +87,7 @@ const SearchBar = () => `
   </div>
 </form>`;
 
-const AnimeCard = (anime) => {
+export const AnimeCard = (anime) => {
     const animeTitle = (anime.title).replace(/'/g, "\\'");
     const onclickAction = `handleSelectAnime('${anime.id}')`;
     return `
@@ -142,7 +104,7 @@ const AnimeCard = (anime) => {
     </div>`;
 };
 
-const renderPagination = () => {
+export const renderPagination = () => {
     const source = state.searchResults || state.categoryResults;
     if (!source) return '';
     const hasNextPage = source.hasNextPage;
@@ -154,7 +116,7 @@ const renderPagination = () => {
     </div>`;
 };
 
-const renderHome = () => {
+export const renderHome = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
     let content = '';
     if (state.isLoading) {
@@ -186,14 +148,9 @@ const renderHome = () => {
     mainContent.innerHTML = (state.error ? ErrorDisplay(state.error) : '') + content;
     const searchForm = document.getElementById('search-form');
     if (searchForm) searchForm.addEventListener('submit', handleSearchSubmit);
-    if (document.getElementById('spotlight-prev')) {
-        document.getElementById('spotlight-prev').addEventListener('click', () => { prevSpotlight(); startSpotlightInterval(); });
-        document.getElementById('spotlight-next').addEventListener('click', () => { nextSpotlight(); startSpotlightInterval(); });
-        startSpotlightInterval();
-    }
 };
 
-const renderDetails = () => {
+export const renderDetails = () => {
     document.getElementById('search-bar-container').innerHTML = '';
     if (state.isLoading || !state.animeDetails) {
         mainContent.innerHTML = Spinner();
@@ -248,7 +205,7 @@ const renderDetails = () => {
     }
 };
 
-const renderCategoryPage = () => {
+export const renderCategoryPage = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
     let content = '';
     if (state.isLoading) {
@@ -269,220 +226,3 @@ const renderCategoryPage = () => {
     const searchForm = document.getElementById('search-form');
     if (searchForm) searchForm.addEventListener('submit', handleSearchSubmit);
 };
-
-// --- App Logic ---
-const setState = (newState) => {
-    state = { ...state, ...newState };
-    if (state.view === 'home') {
-        renderHome();
-    } else if (state.view === 'details') {
-        renderDetails();
-    } else if (state.view === 'category') {
-        renderCategoryPage();
-    }
-};
-
-async function fetchHomeData() {
-    setState({ isLoading: true, error: null, view: 'home' });
-    try {
-        const response = await fetch(`${API_BASE}/`);
-        if (!response.ok) throw new Error(`Failed to fetch home page data: ${response.statusText}`);
-        const data = await response.json();
-        const spotlights = data.results.spotlights || [];
-        const trending = data.results.topAiring || [];
-        const recent = data.results.latestEpisode || [];
-
-        // Fetch detailed info for each spotlight concurrently
-        const spotlightDetailsPromises = spotlights.map(async (anime) => {
-            try {
-                const detailsRes = await fetch(`${API_BASE}/info?id=${anime.id}`);
-                if (!detailsRes.ok) throw new Error('Failed to fetch details');
-                const detailsData = await detailsRes.json();
-                // Merge detailed info into the spotlight object
-                return {
-                    ...anime,
-                    showType: detailsData.results.data.showType,
-                    genres: detailsData.results.data.animeInfo.Genres,
-                };
-            } catch (err) {
-                console.error(`Failed to fetch details for anime ID ${anime.id}:`, err);
-                return anime; // Return original object if fetch fails
-            }
-        });
-
-        const detailedSpotlights = await Promise.all(spotlightDetailsPromises);
-
-        setState({ homeData: { spotlights: detailedSpotlights, trending, recent }, isLoading: false });
-    } catch (err) {
-        console.error(err);
-        setState({ error: 'Could not load home anime data.', isLoading: false });
-    }
-}
-
-async function fetchCategoryResults(endpoint, page = 1) {
-    setState({ isLoading: true, error: null, view: 'category', currentPage: page, categoryResults: null });
-    try {
-        const res = await fetch(`${API_BASE}${endpoint}?page=${page}`);
-        if (!res.ok) throw new Error('Failed to fetch category results.');
-        const data = await res.json();
-        const hasNextPage = data.results.totalPages > page;
-        setState({ categoryResults: { results: data.results.data, hasNextPage: hasNextPage }, isLoading: false });
-    } catch (err) {
-        console.error(err);
-        setState({ error: 'Failed to fetch category results.', isLoading: false });
-    }
-}
-
-async function fetchSearchResults(page = 1) {
-    if (!state.lastSearchQuery) return;
-    setState({ isLoading: true, error: null, currentPage: page, searchResults: null });
-    try {
-        const res = await fetch(`${API_BASE}/search?keyword=${state.lastSearchQuery}&page=${page}`);
-        if (!res.ok) throw new Error('Failed to fetch search results.');
-        const data = await res.json();
-        const hasNextPage = data.results.totalPages > page;
-        setState({ view: 'home', searchResults: { results: data.results.data, hasNextPage: hasNextPage }, isLoading: false });
-    } catch (err) {
-        console.error(err);
-        setState({ error: 'Failed to fetch search results.', isLoading: false });
-    }
-}
-
-async function fetchAnimeDetails(animeId) {
-    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, selectedEpisodeId: null });
-    try {
-        const detailsRes = await fetch(`${API_BASE}/info?id=${animeId}`);
-        const detailsData = await detailsRes.json();
-        const episodesRes = await fetch(`${API_BASE}/episodes/${animeId}`);
-        const episodesData = await episodesRes.json();
-        if (!episodesData.results || !Array.isArray(episodesData.results.episodes)) throw new Error("Invalid episode data from API.");
-        setState({ animeDetails: detailsData.results.data, animeEpisodes: episodesData.results.episodes, isLoading: false });
-    } catch (err) {
-        console.error(err);
-        setState({ error: `Failed to fetch anime details: ${err.message}`, isLoading: false });
-    }
-}
-
-function handleSelectAnime(animeId) {
-    state.selectedAnimeId = animeId;
-    // Update the URL without reloading the page
-    history.pushState({ animeId: animeId }, '', `/anime/${animeId}`);
-    fetchAnimeDetails(animeId);
-}
-
-function handleGoHome() {
-    if (player && !player.isDisposed()) {
-        player.dispose();
-        player = null;
-    }
-    setState({
-        view: 'home',
-        searchResults: null,
-        categoryResults: null,
-        currentCategoryTitle: null,
-        currentCategoryEndpoint: null,
-        lastSearchQuery: '',
-        videoSrc: null,
-        selectedEpisodeId: null,
-        availableSubServers: [],
-        availableDubServers: [],
-        searchSuggestions: []
-    });
-    fetchHomeData();
-    history.pushState({}, '', '/');
-}
-
-// --- New Menu Logic ---
-function toggleMenu(show) {
-    const menu = document.getElementById('side-menu');
-    const overlay = document.getElementById('side-menu-overlay');
-    if (show) {
-        overlay.classList.remove('hidden');
-        menu.classList.remove('-translate-x-full');
-    } else {
-        overlay.classList.add('hidden');
-        menu.classList.add('-translate-x-full');
-    }
-}
-
-function handleCategoryClick(endpoint, title) {
-    state.currentCategoryEndpoint = endpoint;
-    state.currentCategoryTitle = title;
-    fetchCategoryResults(endpoint, 1);
-    toggleMenu(false);
-    history.pushState({ category: title, endpoint: endpoint }, '', `/category?type=${encodeURIComponent(title)}`);
-}
-
-function initializeMenu() {
-    const menuNavLinks = document.getElementById('menu-nav-links');
-    menuNavLinks.innerHTML = MENU_ITEMS.map(item =>
-        `<a href="#" onclick="${item.endpoint === 'home' ? 'handleGoHome()' : `handleCategoryClick('${item.endpoint}', '${item.title}')`}" class="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-base font-medium">${item.title}</a>`
-    ).join('');
-
-    document.getElementById('menu-toggle-btn').addEventListener('click', () => toggleMenu(true));
-    document.getElementById('close-menu-btn').addEventListener('click', () => toggleMenu(false));
-    document.getElementById('side-menu-overlay').addEventListener('click', () => toggleMenu(false));
-}
-
-// --- Banner Logic ---
-let spotlightInterval;
-function showSpotlight(index) {
-    const slides = document.querySelectorAll('.spotlight-slide');
-    if (!slides.length) return;
-    slides.forEach(slide => slide.classList.remove('active'));
-    const newActiveSlide = document.querySelector(`.spotlight-slide[data-index="${index}"]`);
-    if (newActiveSlide) newActiveSlide.classList.add('active');
-    state.currentSpotlightIndex = index;
-}
-function nextSpotlight() {
-    const newIndex = (state.currentSpotlightIndex + 1) % state.homeData.spotlights.length;
-    showSpotlight(newIndex);
-}
-function prevSpotlight() {
-    const newIndex = (state.currentSpotlightIndex - 1 + state.homeData.spotlights.length) % state.homeData.spotlights.length;
-    showSpotlight(newIndex);
-}
-function startSpotlightInterval() {
-    stopSpotlightInterval();
-    if (state.homeData.spotlights.length > 1) {
-        spotlightInterval = setInterval(nextSpotlight, 5000);
-    }
-}
-function stopSpotlightInterval() {
-    clearInterval(spotlightInterval);
-}
-
-// --- Initial Routing ---
-const handleInitialRoute = () => {
-    const path = window.location.pathname;
-    const searchParams = new URLSearchParams(window.location.search);
-
-    if (path.startsWith('/anime/')) {
-        const animeId = path.replace('/anime/', '');
-        if (animeId) {
-            fetchAnimeDetails(animeId);
-        } else {
-            handleGoHome();
-        }
-    } else if (path === '/category') {
-        const categoryType = searchParams.get('type');
-        const categoryItem = MENU_ITEMS.find(item => item.title === categoryType);
-        if (categoryItem) {
-            handleCategoryClick(categoryItem.endpoint, categoryItem.title);
-        } else {
-            handleGoHome();
-        }
-    } else {
-        fetchHomeData();
-    }
-};
-
-// Handle back/forward button clicks
-window.addEventListener('popstate', () => {
-    handleInitialRoute();
-});
-
-// --- Init ---
-initializeMenu();
-// Call the initial route handler on page load
-handleInitialRoute();
