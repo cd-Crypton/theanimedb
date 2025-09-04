@@ -1,9 +1,6 @@
 // --- App Logic ---
 const PROXY_URL = 'https://proxy.shoko.fun/';
 const mainContent = document.getElementById('main-content');
-// ... rest of your script
-
-const mainContent = document.getElementById('main-content');
 
 // --- State Management ---
 let state = {
