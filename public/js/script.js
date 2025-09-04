@@ -395,9 +395,10 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
-        // The PROXY_URL from your script is being used here
-        const proxyUrl = `${PROXY_URL}?url=${encodeURIComponent(sourceUrl)}`;
         
+        // CORRECTED: Construct the full proxy URL with the '/m3u8-proxy' path
+        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
+
         const videoElement = document.getElementById('video-player');
         if (!videoElement) return;
 
