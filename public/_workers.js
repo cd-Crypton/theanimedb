@@ -146,7 +146,7 @@ export default {
             try {
                 return await env.ASSETS.fetch(request);
             } catch (e) {
-                // If fetching the asset fails for some reason (e.g., file not found),
+                // If fetching the asset fails for some reason,
                 // provide a clear 404 response instead of a worker exception.
                 return new Response('Not Found', { status: 404 });
             }
