@@ -7,11 +7,12 @@ let player = null;
 // --- State Management ---
 let state = {
     view: 'home', // 'home' or 'details'
-    homeData: { trending: [], recent: [] },
+    homeData: { trending: [], recent: [], spotlights: [] },
     searchResults: null,
     searchSuggestions: [], // New state variable for search suggestions
     lastSearchQuery: '',
     currentPage: 1,
+    currentSpotlightIndex: 0,
     selectedAnimeId: null,
     animeDetails: null,
     animeEpisodes: [],
@@ -25,8 +26,6 @@ let state = {
 
 // --- API Base URL pointing to the new instance ---
 const API_BASE = 'https://crypton-api.vercel.app/api/';
-
-const SERVERS = ['vidcloud', 'megacloud'];
 
 // --- Render Helpers ---
 const Spinner = () => `
@@ -47,6 +46,36 @@ const ErrorDisplay = (message, showBackButton = false) => {
       ${backButton}
     </div>`;
 };
+
+const SpotlightBanner = (spotlights) => {
+    if (!spotlights || spotlights.length === 0) return '';
+
+    const slides = spotlights.map((anime, index) => `
+        <div class="spotlight-slide ${index === 0 ? 'active' : ''}" data-index="${index}" style="background-image: url('${anime.poster}')">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+            <div class="relative z-10 p-8 md:p-12 lg:p-16 flex flex-col justify-end h-full text-white">
+                <h2 class="text-3xl md:text-5xl font-bold mb-4 line-clamp-2">${anime.title}</h2>
+                <p class="text-gray-300 md:text-lg mb-6 max-w-2xl line-clamp-3">${anime.description}</p>
+                <button onclick="handleSelectAnime('${anime.id}')" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg w-fit hover:bg-blue-600 transition-colors">
+                    Watch Now
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+    <section class="relative h-[60vh] md:h-[70vh] rounded-lg overflow-hidden mb-10 group">
+        ${slides}
+        <button id="spotlight-prev" class="absolute top-1/2 left-4 -translate-y-1/2 bg-black/50 p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-20">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <button id="spotlight-next" class="absolute top-1/2 right-4 -translate-y-1/2 bg-black/50 p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-20">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        </button>
+    </section>
+    `;
+};
+
 
 const SearchBar = () => `
 <form id="search-form" class="w-full">
@@ -125,6 +154,10 @@ const renderHome = () => {
           ${renderPagination()}
         </section>`;
     } else {
+        const spotlightsContent = state.homeData.spotlights.length > 0
+            ? SpotlightBanner(state.homeData.spotlights)
+            : '';
+
         const trendingContent = state.homeData.trending.length > 0
             ? state.homeData.trending.map(anime=>AnimeCard(anime)).join('')
             : '<p class="text-gray-400 col-span-full">No trending anime found.</p>';
@@ -133,6 +166,7 @@ const renderHome = () => {
             : '<p class="text-gray-400 col-span-full">No recent releases found.</p>';
 
         content = `
+        ${spotlightsContent}
         <section class="mb-10">
           <h2 class="text-2xl font-bold text-white mb-4">Top Airing</h2>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">${trendingContent}</div>
@@ -146,6 +180,21 @@ const renderHome = () => {
     mainContent.innerHTML = (state.error ? ErrorDisplay(state.error) : '') + content;
     const searchForm = document.getElementById('search-form');
     if (searchForm) searchForm.addEventListener('submit', handleSearchSubmit);
+    
+    // Add Spotlight logic if banner exists
+    if (document.getElementById('spotlight-prev')) {
+        const prevButton = document.getElementById('spotlight-prev');
+        const nextButton = document.getElementById('spotlight-next');
+        prevButton.addEventListener('click', () => {
+            prevSpotlight();
+            startSpotlightInterval(); // Restart timer on manual change
+        });
+        nextButton.addEventListener('click', () => {
+            nextSpotlight();
+            startSpotlightInterval(); // Restart timer on manual change
+        });
+        startSpotlightInterval();
+    }
 };
 
 const renderDetails = () => {
@@ -244,18 +293,25 @@ const setState = (newState) => {
 async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
     try {
-        const [topAiringRes, recentlyUpdatedRes] = await Promise.all([
+        const [spotlightsRes, topAiringRes, recentlyUpdatedRes] = await Promise.all([
+            fetch(`${API_BASE}spotlights`),
             fetch(`${API_BASE}top-airing`),
             fetch(`${API_BASE}recently-updated`)
         ]);
 
+        if (!spotlightsRes.ok || !topAiringRes.ok || !recentlyUpdatedRes.ok) {
+            throw new Error('Failed to fetch home page data');
+        }
+
+        const spotlightsData = await spotlightsRes.json();
         const topAiringData = await topAiringRes.json();
         const recentlyUpdatedData = await recentlyUpdatedRes.json();
 
+        const spotlights = spotlightsData.results.spotlights || [];
         const trending = topAiringData.results.data || [];
         const recent = recentlyUpdatedData.results.data || [];
         
-        setState({ homeData: { trending, recent }, isLoading: false });
+        setState({ homeData: { spotlights, trending, recent }, isLoading: false });
     } catch (err) {
         console.error(err);
         setState({ error: 'Could not load home anime data.', isLoading: false });
@@ -432,5 +488,43 @@ function handleGoHome(){
     fetchHomeData();
 }
 
+// --- Banner Logic ---
+let spotlightInterval;
+
+function showSpotlight(index) {
+    const slides = document.querySelectorAll('.spotlight-slide');
+    if (!slides.length) return;
+    
+    slides.forEach(slide => slide.classList.remove('active'));
+    const newActiveSlide = document.querySelector(`.spotlight-slide[data-index="${index}"]`);
+    if (newActiveSlide) {
+        newActiveSlide.classList.add('active');
+    }
+    state.currentSpotlightIndex = index;
+}
+
+function nextSpotlight() {
+    const newIndex = (state.currentSpotlightIndex + 1) % state.homeData.spotlights.length;
+    showSpotlight(newIndex);
+}
+
+function prevSpotlight() {
+    const newIndex = (state.currentSpotlightIndex - 1 + state.homeData.spotlights.length) % state.homeData.spotlights.length;
+    showSpotlight(newIndex);
+}
+
+function startSpotlightInterval() {
+    stopSpotlightInterval(); // Ensure no multiple intervals are running
+    if (state.homeData.spotlights.length > 1) {
+        spotlightInterval = setInterval(nextSpotlight, 5000); // Change slide every 5 seconds
+    }
+}
+
+function stopSpotlightInterval() {
+    clearInterval(spotlightInterval);
+}
+
+
 // --- Init ---
 fetchHomeData();
+
