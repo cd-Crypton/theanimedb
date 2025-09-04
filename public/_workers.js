@@ -1,3 +1,4 @@
+// --- App Logic ---
 const VERCEL_API_BASE = 'https://crypton-api.vercel.app';
 
 // Helper function to create a response with CORS headers
@@ -105,51 +106,35 @@ export default {
 
         // --- Proxy API Calls (/api/*) ---
         if (url.pathname.startsWith('/api/')) {
-            const cacheUrl = new URL(request.url);
-            const cacheKey = new Request(cacheUrl.toString(), request);
-            const cache = caches.default;
-
-            // Check the cache for a match before fetching
-            let response = await cache.match(cacheKey);
-            if (!response) {
-                // If not in cache, fetch from the origin API
-                const targetUrl = VERCEL_API_BASE + url.pathname + url.search;
-                response = await fetch(targetUrl, {
+            const targetUrl = VERCEL_API_BASE + url.pathname + url.search;
+            try {
+                const response = await fetch(targetUrl, {
                     headers: { 'User-Agent': 'TheAnimeDB (via Cloudflare Worker)' },
                 });
 
-                // Add a Cache-Control header to specify the cache duration
-                response = new Response(response.body, response);
-                response.headers.set('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-
-                // Put the response in the cache
-                ctx.waitUntil(cache.put(cacheKey, response.clone()));
+                const data = await response.json();
+                const headers = new Headers(response.headers);
+                headers.set('Content-Type', 'application/json');
+                
+                return createCorsResponse(JSON.stringify(data), {
+                    status: response.status,
+                    headers: headers
+                });
+            } catch (err) {
+                return createCorsResponse(JSON.stringify({ error: 'Proxy failed', details: err.message }), {
+                    status: 500
+                });
             }
-
-            return createCorsResponse(response.body, {
-                status: response.status,
-                headers: response.headers
-            });
         }
+
+        // --- SPA Fallback ---
+        let response = await env.ASSETS.fetch(request);
         
-        // --- Final Fallback for SPA Routing ---
-        const path = url.pathname;
-        const isApiOrProxy = path.startsWith('/api/') || path === '/m3u8-proxy' || path === '/ts-proxy';
-        const isKnownStaticAsset = path.includes('.');
-
-        if (!isApiOrProxy && !isKnownStaticAsset) {
-            // If the path is not a known API endpoint and does not have a file extension,
-            // assume it's a client-side route and serve index.html
-            return env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
-        } else {
-            // For all other requests, attempt to serve the static asset
-            try {
-                return await env.ASSETS.fetch(request);
-            } catch (e) {
-                // If fetching the asset fails for some reason,
-                // provide a clear 404 response instead of a worker exception.
-                return new Response('Not Found', { status: 404 });
-            }
+        // If the response is a 404, serve the SPA entry point
+        if (response.status === 404) {
+            response = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
         }
+
+        return response;
     },
 };
