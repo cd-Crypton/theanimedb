@@ -169,11 +169,12 @@ const renderDetails = () => {
     }
 
     let videoPlayerHtml = '';
-    if (state.selectedEpisodeId) { // Show player area if an episode is selected
+    if (state.selectedEpisodeId) {
+        // Use a standard video tag, like in the example
         videoPlayerHtml = `
             <div class="flex justify-center mb-8">
                 <div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden">
-                    <video id="video-player" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto" width="640" height="360"></video>
+                    <video id="video-player" controls class="w-full h-full"></video>
                 </div>
             </div>
         `;
@@ -395,31 +396,31 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
-        
-        // CORRECTED: Construct the full proxy URL with the '/m3u8-proxy' path
-        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
-
         const videoElement = document.getElementById('video-player');
-        if (!videoElement) return;
 
-        // Initialize video.js player if it doesn't exist or was disposed
-        if (!player || player.isDisposed()) {
-            player = videojs(videoElement);
+        // Destroy previous HLS instance if it exists
+        if (hls) {
+            hls.destroy();
         }
 
-        // Set the new source for the player
-        player.src({
-            src: proxyUrl,
-            type: 'application/x-mpegURL' // Specify HLS stream type
-        });
-
-        // Autoplay when the player is ready
-        player.ready(() => {
-            player.play();
-        });
-        
-        setState({ videoSrc: proxyUrl, isLoading: false, error: null });
-
+        if (Hls.isSupported()) {
+            hls = new Hls();
+            // Construct the proxied URL and load it, matching the example
+            const proxySrc = `${PROXY_URL}m3u8-proxy?url=${sourceUrl}`;
+            hls.loadSource(proxySrc);
+            hls.attachMedia(videoElement);
+            hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                videoElement.play();
+            });
+            setState({ videoSrc: proxySrc, isLoading: false, error: null });
+        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+            // Fallback for native HLS support (Safari)
+            videoElement.src = `${PROXY_URL}m3u8-proxy?url=${sourceUrl}`;
+            videoElement.addEventListener('loadedmetadata', function () {
+                videoElement.play();
+            });
+            setState({ videoSrc: videoElement.src, isLoading: false, error: null });
+        }
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
@@ -477,11 +478,11 @@ function handleSelectAnime(animeId){
     fetchAnimeDetails(animeId);
 }
 
-function handleGoHome(){
-    // Properly dispose of the video.js player instance
-    if (player) {
-        player.dispose();
-        player = null;
+function handleGoHome() {
+    // Destroy the HLS instance when leaving the page
+    if (hls) {
+        hls.destroy();
+        hls = null;
     }
     setState({ view:'home', searchResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null, availableSubServers: [], availableDubServers: [], searchSuggestions: [] });
     fetchHomeData();
