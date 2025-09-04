@@ -288,12 +288,14 @@ const setState = (newState) => {
 const startTimeout = (message) => {
     // Set a new timeout and store its ID
     const timeoutId = setTimeout(() => {
+        // Re-enable server buttons on timeout
+        document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = false);
         setState({
             isLoading: false,
             error: `Request timed out. ${message || ''}`.trim(),
             timeoutId: null,
         });
-    }, 10000); // 10 seconds
+    }, 15000); // Increased timeout to 15 seconds
     state.timeoutId = timeoutId;
 };
 
@@ -407,26 +409,38 @@ async function handleServerSelection(episodeId, serverName, type) {
         const sourceUrl = watchData.results.streamingLink.link.file;
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
 
-        // Use the Video.js API to set the source
         if (player) {
+            // Add a specific error handler to the player instance
+            player.on('error', () => {
+                const error = player.error();
+                console.error('Video.js Player Error:', error);
+                // Clear the timeout and show an error
+                if (state.timeoutId) clearTimeout(state.timeoutId);
+                setState({ error: `Playback error: ${error.message}. Please try another server.`, isLoading: false });
+                document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = false);
+            });
+
+            // Set the new source
             player.src({
                 src: proxyUrl,
-                type: 'application/x-mpegURL' // Specify the content type for HLS
+                type: 'application/x-mpegURL'
             });
-            player.ready(() => {
+
+            // When the player has enough data to start, try to play it
+            player.one('loadedmetadata', () => {
+                // The video has loaded successfully, so clear the timeout
+                if (state.timeoutId) clearTimeout(state.timeoutId);
+                setState({ videoSrc: proxyUrl, isLoading: false, error: null });
                 player.play().catch(err => {
                     console.error("Video.js play failed:", err);
-                    setState({ error: 'Playback failed. Please try another server.', isLoading: false });
                 });
             });
         }
-
-        setState({ videoSrc: proxyUrl, isLoading: false, error: null });
-
     } catch (err) {
         console.error(err);
+        // Clear timeout on general failure and show error
+        if (state.timeoutId) clearTimeout(state.timeoutId);
         setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
-    } finally {
         document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = false);
     }
 }
