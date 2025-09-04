@@ -378,7 +378,8 @@ async function handleEpisodeSelection(episodeId) {
 }
 
 async function handleServerSelection(episodeId, serverName, type) {
-    setState({ isLoading: true, videoSrc: null, error: null }); // Clear previous videoSrc
+    document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = true);
+    setState({ isLoading: true, videoSrc: null, error: null });
     startTimeout(`Failed to load streaming source from ${serverName}.`);
     
     try {
@@ -391,28 +392,33 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
+        const iframeUrl = watchData.results.streamingLink.iframe;
         const videoElement = document.getElementById('video-player');
+
+        // Construct the proxy URL with the specified endpoint
+        const proxyUrl = `/m3u8-proxy?url=${encodeURIComponent(sourceUrl)}&referer=${encodeURIComponent(iframeUrl)}`;
 
         if (Hls.isSupported()) {
             const hls = new Hls();
-            hls.loadSource(sourceUrl);
+            hls.loadSource(proxyUrl);
             hls.attachMedia(videoElement);
             hls.on(Hls.Events.MANIFEST_PARSED, function () {
                 videoElement.play();
             });
         } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native HLS support (mainly on Safari)
-            videoElement.src = sourceUrl;
+            videoElement.src = proxyUrl;
             videoElement.addEventListener('loadedmetadata', function () {
                 videoElement.play();
             });
         }
         
-        setState({ videoSrc: sourceUrl, isLoading: false, error: null });
+        setState({ videoSrc: proxyUrl, isLoading: false, error: null });
 
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
+    } finally {
+        document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = false);
     }
 }
 
