@@ -342,106 +342,10 @@ async function fetchAnimeDetails(animeId) {
     }
 }
 
-async function handleEpisodeSelection(episodeId) {
-    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, error: null, availableSubServers: [], availableDubServers: [] });
-    try {
-        const serversRes = await fetch(`${API_BASE}/servers/${episodeId.split('?ep=')[0]}?ep=${episodeId.split('?ep=')[1]}`);
-        const serversData = await serversRes.json();
-        if (!serversData.results || !Array.isArray(serversData.results)) throw new Error("Invalid server data from API.");
-        const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
-        const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
-        setState({ availableSubServers: subServers, availableDubServers: dubServers, isLoading: false });
-    } catch (err) {
-        console.error(err);
-        setState({ error: `Failed to fetch servers: ${err.message}`, isLoading: false });
-    }
-}
-
-async function handleServerSelection(event, episodeId, serverName, type) {
-    const serverContainer = document.getElementById('server-selection-container');
-    if (serverContainer) {
-        serverContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active-server'));
-        event.target.classList.add('active-server');
-    }
-    try {
-        if (player && !player.isDisposed()) {
-            player.loadingSpinner.show();
-            player.error(null);
-        }
-        const watchUrl = `${API_BASE}/stream?id=${episodeId}&server=${serverName}&type=${type}`;
-        const watchRes = await fetch(watchUrl);
-        const watchData = await watchRes.json();
-        if (!watchData.results?.streamingLink?.link?.file) throw new Error('Streaming source not found for this server.');
-        const sourceUrl = watchData.results.streamingLink.link.file;
-        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
-        if (player && !player.isDisposed()) {
-            player.on('error', () => {
-                const error = player.error();
-                console.error('Video.js Player Error:', error);
-                player.error({ code: 4, message: `The stream from ${serverName} failed to load. Please try another server.` });
-            });
-            player.src({ src: proxyUrl, type: 'application/x-mpegURL' });
-            player.one('loadedmetadata', () => {
-                player.loadingSpinner.hide();
-                player.play().catch(err => { console.error("Video.js play failed:", err); player.error({ code: 4, message: "Playback was prevented by the browser." }) });
-            });
-        }
-    } catch (err) {
-        console.error(err);
-        if (player && !player.isDisposed()) {
-            player.error({ code: 4, message: err.message });
-        }
-    }
-}
-
-// --- Event Handlers ---
-function handleSearchInput(query) {
-    if (query.trim() === '') {
-        setState({ searchSuggestions: [] });
-        return;
-    }
-    fetchSearchSuggestions(query);
-}
-
-function selectSuggestion(animeId) {
-    handleSelectAnime(animeId);
-    setState({ searchSuggestions: [] });
-}
-
-function handleSearchSubmit(e) {
-    e.preventDefault();
-    const query = document.getElementById('search-input').value.trim();
-    if (!query) return;
-    state.lastSearchQuery = query;
-    state.currentPage = 1;
-    fetchSearchResults(1);
-}
-
-function handlePageChange(dir) {
-    let newPage = state.currentPage;
-    if (dir === 'next') newPage++;
-    if (dir === 'prev' && newPage > 1) newPage--;
-    if (state.view === 'category' && state.currentCategoryEndpoint) {
-        fetchCategoryResults(state.currentCategoryEndpoint, newPage);
-    } else if (state.view === 'home' && state.lastSearchQuery) {
-        fetchSearchResults(newPage);
-    }
-}
-
-async function fetchSearchSuggestions(query) {
-    try {
-        const res = await fetch(`${API_BASE}/search/suggest?keyword=${query}`);
-        const data = await res.json();
-        if (data.results) {
-            setState({ searchSuggestions: data.results });
-        }
-    } catch (err) {
-        console.error("Failed to fetch search suggestions:", err);
-    }
-}
-
 function handleSelectAnime(animeId) {
     state.selectedAnimeId = animeId;
+    // Update the URL without reloading the page
+    history.pushState({ animeId: animeId }, '', `/anime/${animeId}`);
     fetchAnimeDetails(animeId);
 }
 
@@ -464,6 +368,7 @@ function handleGoHome() {
         searchSuggestions: []
     });
     fetchHomeData();
+    history.pushState({}, '', '/');
 }
 
 // --- New Menu Logic ---
@@ -484,6 +389,7 @@ function handleCategoryClick(endpoint, title) {
     state.currentCategoryTitle = title;
     fetchCategoryResults(endpoint, 1);
     toggleMenu(false);
+    history.pushState({ category: title, endpoint: endpoint }, '', `/category?type=${encodeURIComponent(title)}`);
 }
 
 function initializeMenu() {
@@ -525,6 +431,37 @@ function stopSpotlightInterval() {
     clearInterval(spotlightInterval);
 }
 
+// --- Initial Routing ---
+const handleInitialRoute = () => {
+    const path = window.location.pathname;
+    const searchParams = new URLSearchParams(window.location.search);
+
+    if (path.startsWith('/anime/')) {
+        const animeId = path.replace('/anime/', '');
+        if (animeId) {
+            handleSelectAnime(animeId);
+        } else {
+            handleGoHome();
+        }
+    } else if (path === '/category') {
+        const categoryType = searchParams.get('type');
+        const categoryItem = MENU_ITEMS.find(item => item.title === categoryType);
+        if (categoryItem) {
+            handleCategoryClick(categoryItem.endpoint, categoryItem.title);
+        } else {
+            handleGoHome();
+        }
+    } else {
+        handleGoHome();
+    }
+};
+
+// Handle back/forward button clicks
+window.addEventListener('popstate', () => {
+    handleInitialRoute();
+});
+
 // --- Init ---
 initializeMenu();
-fetchHomeData();
+// Call the initial route handler on page load
+handleInitialRoute();
