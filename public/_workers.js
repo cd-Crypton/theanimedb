@@ -130,8 +130,8 @@ export default {
         // --- SPA Fallback ---
         let response = await env.ASSETS.fetch(request);
         
-        // If the response is a 404, serve the SPA entry point
-        if (response.status === 404) {
+        // If the response is a 500, serve the SPA entry point
+        if (response.status === 500) {
             response = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
         }
 
