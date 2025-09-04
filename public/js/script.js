@@ -382,12 +382,16 @@ async function handleEpisodeSelection(episodeId) {
 }
 
 async function handleServerSelection(episodeId, serverName, type) {
+    console.log("🔄 Selecting server:", serverName, type, episodeId);
+
     document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = true);
     setState({ isLoading: true, videoSrc: null, error: null });
     startTimeout(`Failed to load streaming source from ${serverName}.`);
 
     try {
         const watchUrl = `${API_BASE}stream?id=${episodeId}&server=${serverName}&type=${type}`;
+        console.log("Fetching:", watchUrl);
+
         const watchRes = await fetch(watchUrl);
         const watchData = await watchRes.json();
 
@@ -396,46 +400,52 @@ async function handleServerSelection(episodeId, serverName, type) {
         }
 
         const sourceUrl = watchData.results.streamingLink.link.file;
-        const videoElement = document.getElementById('video-player');
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
+        console.log("🎯 Using proxy URL:", proxyUrl);
 
-        // Destroy previous HLS instance (if exists)
+        const videoElement = document.getElementById('video-player');
+
+        if (!videoElement) {
+            throw new Error("No <video id='video-player'> element found!");
+        }
+
+        // Destroy previous instance
         if (hls) {
+            console.log("🧹 Destroying old Hls instance...");
             hls.destroy();
             hls = null;
         }
 
-        // Play using Hls.js or native HLS support
         if (window.Hls && Hls.isSupported()) {
-            hls = new Hls({ debug: false });
+            console.log("✅ Hls.js supported, creating player...");
+            hls = new Hls();
             hls.loadSource(proxyUrl);
             hls.attachMedia(videoElement);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                videoElement.play().catch(console.error);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                console.log("📜 Manifest parsed — starting playback...");
+                videoElement.play().catch(err => console.error("Play error:", err));
             });
 
-            // Handle HLS errors gracefully
             hls.on(Hls.Events.ERROR, (event, data) => {
-                console.error('HLS error:', data);
-                setState({ error: `Playback error: ${data.type}`, isLoading: false });
+                console.error("❌ Hls.js error:", data);
             });
-
-            setState({ videoSrc: proxyUrl, isLoading: false, error: null });
 
         } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            // Safari supports HLS natively
+            console.log("🍏 Native HLS supported (Safari) — using direct src.");
             videoElement.src = proxyUrl;
             videoElement.addEventListener('loadedmetadata', () => {
-                videoElement.play().catch(console.error);
+                videoElement.play().catch(err => console.error("Play error:", err));
             });
-            setState({ videoSrc: proxyUrl, isLoading: false, error: null });
 
         } else {
             throw new Error('HLS not supported on this browser.');
         }
 
+        setState({ videoSrc: proxyUrl, isLoading: false, error: null });
+
     } catch (err) {
-        console.error(err);
+        console.error("💥 handleServerSelection error:", err);
         setState({ error: `Failed to load episode: ${err.message}`, isLoading: false });
     } finally {
         document.querySelectorAll('.server-buttons button').forEach(button => button.disabled = false);
