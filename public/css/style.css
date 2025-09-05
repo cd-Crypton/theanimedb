@@ -1,14 +1,50 @@
-/* For custom scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+/* Anime card hover effect */
+.anime-card:hover { transform: translateY(-4px); transition: transform 0.3s; }
+
+/* Button disabled state */
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Active server button style */
+.active-server {
+  background-color: #ef4444 !important; /* A distinct color like red */
+  color: #ffffff !important;
+  border: 1px solid #ef4444;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: #1f2937; /* bg-gray-800 */
+
+/* --- New Spotlight Banner Styles --- */
+.spotlight-slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  z-index: 1;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #4b5563; /* bg-gray-600 */
-    border-radius: 4px;
+
+.spotlight-slide.active {
+  opacity: 1;
+  z-index: 2;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #6b7280; /* bg-gray-500 */
+
+/* For truncating long descriptions */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }

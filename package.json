@@ -2,13 +2,16 @@
     "name": "theanimedb",
     "version": "1.0.0",
     "scripts": {
-      "build": "npm run copy-files",
-      "copy-files": "mkdir -p public && cp -r *.html css js img public/",
-      "dev": "wrangler dev",
-      "deploy": "npm run build && wrangler deploy",
-      "deploy:dry": "npm run build && wrangler deploy --dry-run"
+        "build": "npm run copy-files",
+        "copy-files": "mkdir -p public && cp -r *.html css js img public/",
+        "dev": "wrangler dev",
+        "deploy": "npm run build && wrangler deploy",
+        "deploy:dry": "npm run build && wrangler deploy --dry-run"
     },
     "devDependencies": {
-      "wrangler": "^4.0.0"
+        "wrangler": "^4.0.0"
+    },
+    "dependencies": {
+        "artplayer": "^5.2.5"
     }
-  }
+}

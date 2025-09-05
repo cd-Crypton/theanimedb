@@ -1,60 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TheAnimeDB</title>
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Inter, sans-serif' font-size='24' font-weight='900' fill='%23FFFFFF'%3ETheAnime%3Ctspan fill='%233B82F6'%3EDB%3C/tspan%3E%3C/text%3E%3C/svg%3E">
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Custom Tailwind Config -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
-    <!-- Google Fonts & Custom Stylesheet -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
-    <!-- HLS.js for video streaming -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TheAnimeDB</title>
+  <link rel="icon" href="data:image/svg+xml,...">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
+    }
+  </script>
+  
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans">
 
-    <div id="app" class="p-4 sm:p-6 lg:p-8">
-        <header class="mb-8 text-center">
-            <!-- New SVG Logo -->
-            <div class="max-w-md mx-auto">
-                <svg viewBox="0 0 280 50" xmlns="http://www.w3.org/2000/svg" class="w-full">
-                    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Inter, sans-serif" font-size="40" font-weight="900" fill="#FFFFFF">
-                        TheAnime<tspan fill="#3B82F6">DB</tspan>
-                    </text>
-                </svg>
-            </div>
-            <p class="text-gray-400 mt-2">Powered by Consumet API (Gogoanime)</p>
-            <p class="text-xs text-gray-500 mt-1">For educational purposes only.</p>
-        </header>
-
-        <main id="main-content">
-            <!-- App content will be rendered by script.js -->
-        </main>
-
-        <footer class="text-center mt-12 text-gray-500 text-sm">
-            <p>This is a non-commercial project for educational purposes. All content is indexed from third-party sources.</p>
-        </footer>
+  <div id="side-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+  <div id="side-menu" class="fixed top-0 left-0 w-64 h-full bg-gray-800 z-[60] transform -translate-x-full transition-transform duration-300 ease-in-out">
+    <div class="p-4">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold text-white">Menu</h2>
+        <button id="close-menu-btn" class="text-gray-400 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <nav id="menu-nav-links" class="flex flex-col gap-2"></nav>
     </div>
+  </div>
 
-    <!-- Your application logic is now in a separate file -->
-    <script src="/js/script.js"></script>
+  <div id="app" class="px-4 sm:px-6 lg:px-8">
+    <header class="fixed top-[0px] w-full z-50 bg-gray-900/80 backdrop-blur-sm -ml-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div class="flex flex-row items-center justify-between gap-2">
+          <div class="flex items-center gap-4">
+            <button id="menu-toggle-btn" class="text-white p-2 rounded-md hover:bg-gray-700">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+              </svg>
+            </button>
+            <div class="flex flex-col items-center sm:items-start min-w-0 cursor-pointer" onclick="handleGoHome()"> 
+                <h1 class="text-lg sm:text-2xl font-extrabold leading-none">
+                    <span class="text-white">TheAnime</span><span class="text-blue-500">DB</span>
+                </h1>
+            </div>
+          </div>
+          
+          <div id="search-bar-container" class="sm:w-auto sm:max-w-xs md:max-w-sm mr-[10px]">
+            </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" class="mt-20">
+      </main>
+
+    <footer class="text-center mt-12 text-gray-500 text-sm">
+      <p><strong>Disclaimer:</strong> TheAnimeDB does not store any files on its servers. All content is provided by non-affiliated third parties. Users should direct all legal inquiries to the respective file hosts and providers. TheAnimeDB is not responsible for any content provided by third-party services.</p>
+      <p class="mt-2">© TheAnimeDB - All rights reserved.</p>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="js/script.js"></script>
 </body>
 </html>
-
