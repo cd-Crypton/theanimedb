@@ -316,7 +316,7 @@ const renderHome = () => {
         const spotlightsContent = state.homeData.spotlights.length > 0 ? SpotlightBanner(state.homeData.spotlights) : '';
         
         const recentContent = state.homeData.recent.length > 0 
-            ? state.homeData.recent.map(anime => AnimeCard(anime, { number: anime.episode, id: anime.episodeId })).join('') 
+            ? state.homeData.recent.map(anime => AnimeCard(anime, { number: anime.episode_no, id: anime.episodeId })).join('') 
             : '<p class="text-gray-400 col-span-full">No recent releases found.</p>';
         const trendingContent = state.homeData.trending.length > 0 
             ? state.homeData.trending.map(anime => AnimeCard(anime)).join('') 
@@ -531,8 +531,6 @@ async function fetchDetailsForPlayer(animeId, targetEpisodeId = null) {
     }
 }
 
-
-// --- MODIFICATION: Restored the skip buttons in the Artplayer config ---
 async function handleServerSelection(selectedValue) {
     if (!selectedValue) return;
     const [serverName, type] = selectedValue.split('|');
@@ -551,7 +549,8 @@ async function handleServerSelection(selectedValue) {
 
         const sourceUrl = watchData.results.streamingLink.link.file;
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
-        
+        const subtitles = watchData.results.streamingLink.tracks || [];
+
         player = new Artplayer({ 
             container: '#video-player', 
             url: proxyUrl, 
@@ -586,6 +585,48 @@ async function handleServerSelection(selectedValue) {
                 },
             ]
         });
+
+        if (subtitles.length > 0) {
+            const captionIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 16 240 240" width="28" height="28"><path d="M215,40H25c-2.7,0-5,2.2-5,5v150c0,2.7,2.2,5,5,5h190c2.7,0,5-2.2,5-5V45C220,42.2,217.8,40,215,40z M108.1,137.7c0.7-0.7,1.5-1.5,2.4-2.3l6.6,7.8c-2.2,2.4-5,4.4-8,5.8c-8,3.5-17.3,2.4-24.3-2.9c-3.9-3.6-5.9-8.7-5.5-14v-25.6c0-2.7,0.5-5.3,1.5-7.8c0.9-2.2,2.4-4.3,4.2-5.9c5.7-4.5,13.2-6.2,20.3-4.6c3.3,0.5,6.3,2,8.7,4.3c1.3,1.3,2.5,2.6,3.5,4.2l-7.1,6.9c-2.4-3.7-6.5-5.9-10.9-5.9c-2.4-0.2-4.8,0.7-6.6,2.3c-1.7,1.7-2.5,4.1-2.4,6.5v25.6C90.4,141.7,102,143.5,108.1,137.7z M152.9,137.7c0.7-0.7,1.5-1.5,2.4-2.3l6.6,7.8c-2.2,2.4-5,4.4-8,5.8c-8,3.5-17.3,2.4-24.3-2.9c-3.9-3.6-5.9-8.7-5.5-14v-25.6c0-2.7,0.5-5.3,1.5-7.8c0.9-2.2,2.4-4.3,4.2-5.9c5.7-4.5,13.2-6.2,20.3-4.6c3.3,0.5,6.3,2,8.7,4.3c1.3,1.3,2.5,2.6,3.5,4.2l-7.1,6.9c-2.4-3.7-6.5-5.9-10.9-5.9c-2.4-0.2-4.8,0.7-6.6,2.3c-1.7,1.7-2.5,4.1-2.4,6.5v25.6C135.2,141.7,146.8,143.5,152.9,137.7z" fill="#fff"></path></svg>`;
+            
+            const defaultEnglishSub = subtitles.find(sub => sub.label.toLowerCase() === "english" && sub.default) || subtitles.find(sub => sub.label.toLowerCase() === "english");
+
+            player.setting.add({
+                name: "captions",
+                icon: captionIcon,
+                html: "Subtitle",
+                tooltip: defaultEnglishSub?.label || "Off",
+                position: "right",
+                selector: [
+                    {
+                        html: "Display",
+                        switch: true,
+                        onSwitch: function (item) {
+                            item.tooltip = item.switch ? "Hide" : "Show";
+                            player.subtitle.show = !item.switch;
+                            return !item.switch;
+                        },
+                    },
+                    ...subtitles.map((sub) => ({
+                        default: sub === defaultEnglishSub,
+                        html: sub.label,
+                        url: sub.file,
+                    })),
+                ],
+                onSelect: function (item) {
+                    player.subtitle.switch(item.url, {
+                        name: item.html
+                    });
+                    return item.html;
+                },
+            });
+
+            if (defaultEnglishSub) {
+                player.subtitle.switch(defaultEnglishSub.file, {
+                    name: defaultEnglishSub.label,
+                });
+            }
+        }
 
     } catch (err) {
         console.error(err);
