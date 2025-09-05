@@ -203,33 +203,65 @@ const renderHome = () => {
     }
 };
 
+// --- MODIFICATION START: Updated renderDetails function ---
 const renderDetails = () => {
     document.getElementById('search-bar-container').innerHTML = '';
     if (state.isLoading || !state.animeDetails) {
         mainContent.innerHTML = Spinner();
         return;
     }
+
     const details = state.animeDetails;
     const genres = details.animeInfo.Genres ? details.animeInfo.Genres.join(', ') : 'N/A';
-    let episodeListHtml = '';
+
+    // --- Create Episode Dropdown ---
+    let episodeDropdownHtml = '';
     if (state.animeEpisodes && state.animeEpisodes.length > 0) {
-        episodeListHtml = `<h3 class="text-xl font-bold text-white mb-2">Episode List</h3><div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto max-h-96 custom-scrollbar">${state.animeEpisodes.map(ep => `<button onclick="handleEpisodeSelection('${ep.id}')" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-500 transition-colors">${ep.episode_no}</button>`).join('')}</div>`;
+        const episodeOptions = state.animeEpisodes.map(ep => 
+            `<option value="${ep.id}" ${ep.id === state.selectedEpisodeId ? 'selected' : ''}>
+                Episode ${ep.episode_no}
+            </option>`
+        ).join('');
+        episodeDropdownHtml = `
+            <select onchange="handleEpisodeSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                ${episodeOptions}
+            </select>`;
     } else {
-        episodeListHtml = '<p class="text-gray-400">No episodes found.</p>';
+        episodeDropdownHtml = '<p class="text-gray-400">No episodes found.</p>';
     }
-    let videoPlayerHtml = '';
-    if (state.selectedEpisodeId) {
-        videoPlayerHtml = `<div class="flex justify-center mb-8"><div id="video-player" class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden"></div></div>`;
+
+    // --- Create Server Dropdown ---
+    let serverDropdownHtml = '';
+    if (state.selectedEpisodeId && (state.availableSubServers.length > 0 || state.availableDubServers.length > 0)) {
+        const subOptions = state.availableSubServers.map(server => `<option value="${server}|sub">${server} (Sub)</option>`).join('');
+        const dubOptions = state.availableDubServers.map(server => `<option value="${server}|dub">${server} (Dub)</option>`).join('');
+        serverDropdownHtml = `
+            <select onchange="handleServerSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="" disabled selected>Select a server</option>
+                <optgroup label="Subbed">${subOptions}</optgroup>
+                <optgroup label="Dubbed">${dubOptions}</optgroup>
+            </select>`;
     }
-    let serverSelectionHtml = '';
-    if (state.selectedEpisodeId) {
-        const subServerButtonsHtml = state.availableSubServers.map(server => `<button onclick="handleServerSelection(event, '${state.selectedEpisodeId}', '${server}', 'sub')" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">${server}</button>`).join('');
-        const dubServerButtonsHtml = state.availableDubServers.map(server => `<button onclick="handleServerSelection(event, '${state.selectedEpisodeId}', '${server}', 'dub')" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">${server}</button>`).join('');
-        serverSelectionHtml = `<div class="mb-8" id="server-selection-container"><h3 class="text-xl font-bold text-white mb-2">Servers</h3>${subServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4><div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>` : ''}${dubServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4><div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>` : ''}</div>`;
-    }
+
     const content = `
     <div class="max-w-4xl mx-auto">
-        <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>Back to Home</button>
+        <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+            Back to Home
+        </button>
+
+        <div class="bg-gray-800 rounded-lg p-4 mb-8">
+            <div id="video-player-container" class="mb-4">
+                <div id="video-player" class="w-full aspect-video bg-black rounded-lg overflow-hidden">
+                    ${!state.selectedEpisodeId ? '<div class="flex items-center justify-center h-full text-gray-400">Please select an episode to begin.</div>' : ''}
+                </div>
+            </div>
+            <div class="flex flex-col md:flex-row gap-4">
+                ${episodeDropdownHtml}
+                ${serverDropdownHtml}
+            </div>
+        </div>
+
         <div class="flex flex-col md:flex-row gap-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
             <div class="md:flex-shrink-0"><img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full md:w-64 h-auto rounded-lg shadow-md" /></div>
             <div class="flex-grow">
@@ -244,15 +276,10 @@ const renderDetails = () => {
                 <p class="text-gray-300 mb-4"><span class="font-semibold text-white">Summary:</span>${details.animeInfo.Overview || 'No summary available.'}</p>
             </div>
         </div>
-        <div class="mt-8">
-            ${videoPlayerHtml}
-            ${serverSelectionHtml}
-            <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
-            ${episodeListHtml}
-        </div>
     </div>`;
     mainContent.innerHTML = content;
 };
+// --- MODIFICATION END ---
 
 const renderCategoryPage = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
@@ -371,28 +398,49 @@ async function fetchAnimeDetails(animeId) {
             throw new Error("Invalid episode data from API.");
         }
         
+        // --- MODIFICATION: Auto-select first episode on load ---
+        const firstEpisodeId = episodesData.results.episodes.length > 0 ? episodesData.results.episodes[0].id : null;
+
         setState({
             animeDetails: detailsData.results.data,
             animeEpisodes: episodesData.results.episodes,
+            selectedEpisodeId: firstEpisodeId, // Set the first episode as selected
             isLoading: false
         });
+        
+        // If an episode was selected, fetch its servers
+        if (firstEpisodeId) {
+             await fetchServersForEpisode(firstEpisodeId);
+        }
+
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to fetch anime details: ${err.message}`, isLoading: false });
     }
 }
 
-async function handleServerSelection(event, episodeId, serverName, type) {
-    const serverContainer = document.getElementById('server-selection-container');
-    if (serverContainer) {
-        serverContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active-server'));
-        event.target.classList.add('active-server');
+// --- MODIFICATION START: Renamed and refactored from handleServerSelection ---
+async function handleServerSelection(selectedValue) {
+    if (!selectedValue) return;
+
+    const [serverName, type] = selectedValue.split('|');
+    const episodeId = state.selectedEpisodeId;
+
+    if (!serverName || !type || !episodeId) {
+        console.error("Invalid server selection");
+        return;
     }
 
     try {
         if (player) {
             player.destroy();
+            player = null;
         }
+
+        // Show a loading state in the player
+        const playerContainer = document.getElementById('video-player');
+        if(playerContainer) playerContainer.innerHTML = Spinner();
+
 
         const watchUrl = `${API_BASE}/stream?id=${episodeId}&server=${serverName}&type=${type}`;
         const watchRes = await fetch(watchUrl);
@@ -484,24 +532,61 @@ async function handleServerSelection(event, episodeId, serverName, type) {
         console.error(err);
         if (player) {
             player.notice.show(err.message);
+        } else {
+             const playerContainer = document.getElementById('video-player');
+             if(playerContainer) playerContainer.innerHTML = `<div class="flex items-center justify-center h-full text-red-400 p-4">${err.message}</div>`;
         }
     }
 }
+// --- MODIFICATION END ---
 
-async function handleEpisodeSelection(episodeId) {
-    setState({ isLoading: true, selectedEpisodeId: episodeId, videoSrc: null, error: null, availableSubServers: [], availableDubServers: [] });
+
+// --- MODIFICATION START: Extracted server fetching logic ---
+async function fetchServersForEpisode(episodeId) {
+    // Clear previous player instance if it exists
+    if (player) {
+        player.destroy();
+        player = null;
+    }
+    
+    // Update state to show loading and clear old data
+    setState({ 
+        isLoading: true, 
+        selectedEpisodeId: episodeId, 
+        videoSrc: null, 
+        error: null, 
+        availableSubServers: [], 
+        availableDubServers: [] 
+    });
+
     try {
         const serversRes = await fetch(`${API_BASE}/servers/${episodeId.split('?ep=')[0]}?ep=${episodeId.split('?ep=')[1]}`);
         const serversData = await serversRes.json();
         if (!serversData.results || !Array.isArray(serversData.results)) throw new Error("Invalid server data from API.");
+        
         const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
         const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
-        setState({ availableSubServers: subServers, availableDubServers: dubServers, isLoading: false });
+        
+        // Update state with new server lists, which triggers a re-render
+        setState({ 
+            availableSubServers: subServers, 
+            availableDubServers: dubServers, 
+            isLoading: false 
+        });
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to fetch servers: ${err.message}`, isLoading: false });
     }
 }
+// --- MODIFICATION END ---
+
+
+// --- MODIFICATION START: New handler for episode dropdown ---
+async function handleEpisodeSelection(episodeId) {
+    await fetchServersForEpisode(episodeId);
+}
+// --- MODIFICATION END ---
+
 
 // --- Event Handlers ---
 function handleSearchInput(query) {
