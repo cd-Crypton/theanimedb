@@ -308,7 +308,6 @@ const renderHome = () => {
     }
 };
 
-// --- MODIFICATION START: Updated renderDetailsPage with new layout ---
 const renderDetailsPage = () => {
     document.getElementById('search-bar-container').innerHTML = '';
     if (state.isLoading || !state.animeDetails) {
@@ -365,7 +364,6 @@ const renderDetailsPage = () => {
     </div>`;
     mainContent.innerHTML = content;
 };
-// --- MODIFICATION END ---
 
 const renderCategoryPage = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
@@ -458,6 +456,7 @@ async function fetchSearchSuggestions(query) {
     }
 }
 
+// --- MODIFICATION: Updated fetchDetailsForPlayer with robust error handling ---
 async function fetchDetailsForPlayer(animeId) {
     setState({ isLoading: true, view: 'details' });
     try {
@@ -467,35 +466,32 @@ async function fetchDetailsForPlayer(animeId) {
         ]);
 
         if (!detailsRes.ok || !episodesRes.ok) {
-            // If either API call fails (e.g., 404 Not Found), throw an error to be caught below.
             throw new Error(`Could not find anime with ID: ${animeId}`);
         }
 
         const detailsData = await detailsRes.json();
         const episodesData = await episodesRes.json();
         
-        if (!detailsData.results || !episodesData.results || !Array.isArray(episodesData.results.episodes)) {
-             throw new Error("Invalid data from API.");
+        if (!detailsData.results?.data?.id || !episodesData.results || !Array.isArray(episodesData.results.episodes)) {
+             throw new Error("Invalid or empty data from API.");
         }
         
         const firstEpisodeId = episodesData.results.episodes.length > 0 ? episodesData.results.episodes[0].id : null;
         
-        // Update state with details; isLoading is handled by fetchServersForEpisode or set explicitly if no episodes.
         setState({ animeDetails: detailsData.results.data, animeEpisodes: episodesData.results.episodes, selectedEpisodeId: firstEpisodeId });
         
         if (firstEpisodeId) {
             await fetchServersForEpisode(firstEpisodeId);
         } else {
-            // No episodes found, so we are done loading.
             setState({ isLoading: false });
         }
 
     } catch (err) {
         console.error(`Failed to load details for ${animeId}:`, err);
-        // On failure, redirect to the home page instead of showing an error.
         handleGoHome();
     }
 }
+
 
 async function handleServerSelection(selectedValue) {
     if (!selectedValue) return;
@@ -595,24 +591,34 @@ function handlePageChange(dir) {
     }
 }
 
+// --- MODIFICATION: Updated handleGoHome to fully reset state ---
 function handleGoHome() {
-    if (player) player.destroy();
+    if (player) {
+        player.destroy();
+        player = null;
+    }
+    history.pushState({}, '', '/');
     setState({
         view: 'home',
+        homeTab: 'recent',
         searchResults: null,
         categoryResults: null,
+        currentCategoryTitle: null,
+        currentCategoryEndpoint: null,
         lastSearchQuery: '',
-        videoSrc: null,
-        selectedEpisodeId: null,
+        selectedAnimeId: null,
         animeDetails: null,
+        animeDetailsForModal: null,
         animeEpisodes: [],
+        selectedEpisodeId: null,
         availableSubServers: [],
         availableDubServers: [],
-        homeTab: 'recent' // Reset tab to default
+        videoSrc: null,
+        error: null,
     });
     fetchHomeData();
-    history.pushState({}, '', '/');
 }
+
 
 function switchHomeTab(tab) {
     setState({ homeTab: tab });
@@ -697,5 +703,4 @@ window.addEventListener('popstate', handleInitialRoute);
 // --- Init ---
 initializeMenu();
 handleInitialRoute();
-
 
