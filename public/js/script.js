@@ -23,8 +23,7 @@ let state = {
     targetEpisodeId: null, // To hold latest episode ID for the modal
     animeEpisodes: [],
     selectedEpisodeId: null,
-    availableSubServers: [],
-    availableDubServers: [],
+    availableServers: [],
     videoSrc: null,
     isLoading: true,
     error: null,
@@ -412,10 +411,23 @@ const renderDetailsPage = () => {
     }
 
     let serverDropdownHtml = '';
-    if (state.selectedEpisodeId && (state.availableSubServers.length > 0 || state.availableDubServers.length > 0)) {
-        const subOptions = state.availableSubServers.map(server => `<option value="${server}|sub">${server} (Sub)</option>`).join('');
-        const dubOptions = state.availableDubServers.map(server => `<option value="${server}|dub">${server} (Dub)</option>`).join('');
-        serverDropdownHtml = `<select id="server-select" onchange="handleServerSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="" disabled selected>Select a server</option><optgroup label="Subbed">${subOptions}</optgroup><optgroup label="Dubbed">${dubOptions}</optgroup></select>`;
+    if (state.selectedEpisodeId && state.availableServers.length > 0) {
+        const subServers = state.availableServers.filter(s => s.type === 'sub');
+        const dubServers = state.availableServers.filter(s => s.type === 'dub');
+
+        const createOption = server => {
+            const value = `${server.name}|${server.type}|${server.source}|${server.originalName || server.name}`;
+            return `<option value="${value}">${server.name} (${server.type.charAt(0).toUpperCase() + server.type.slice(1)})</option>`;
+        };
+
+        const subOptions = subServers.map(createOption).join('');
+        const dubOptions = dubServers.map(createOption).join('');
+
+        serverDropdownHtml = `<select id="server-select" onchange="handleServerSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="" disabled selected>Select a server</option>
+            ${subOptions ? `<optgroup label="Subbed">${subOptions}</optgroup>` : ''}
+            ${dubOptions ? `<optgroup label="Dubbed">${dubOptions}</optgroup>` : ''}
+        </select>`;
     }
 
     const content = `
@@ -647,9 +659,9 @@ async function fetchDetailsForPlayer(animeId, targetEpisodeId = null) {
 
 async function handleServerSelection(selectedValue) {
     if (!selectedValue) return;
-    const [serverName, type] = selectedValue.split('|');
+    const [displayName, type, source, serverName] = selectedValue.split('|');
     const episodeId = state.selectedEpisodeId;
-    if (!serverName || !type || !episodeId) return;
+    if (!serverName || !type || !episodeId || !source) return;
 
     const serverSelect = document.getElementById('server-select');
     if (serverSelect) {
@@ -661,29 +673,35 @@ async function handleServerSelection(selectedValue) {
     if(playerContainer) playerContainer.innerHTML = Spinner();
 
     try {
-        const watchUrl = `${API_BASE}/stream?id=${episodeId}&server=${serverName}&type=${type}`;
+        const endpoint = source === 'fallback' ? 'stream/fallback' : 'stream';
+        const watchUrl = `${API_BASE}/${endpoint}?id=${episodeId}&server=${serverName}&type=${type}`;
+        
         const watchRes = await fetch(watchUrl);
         const watchData = await watchRes.json();
-        if (!watchData.results?.streamingLink?.link?.file) throw new Error('Streaming source not found.');
+
+        if (!watchRes.ok || !watchData.results?.streamingLink?.link?.file) {
+            throw new Error(`Streaming source not found from ${displayName} (${source}).`);
+        }
+        console.log(`Fetched from ${source} stream source: ${displayName}`);
 
         const sourceUrl = watchData.results.streamingLink.link.file;
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
         const subtitles = watchData.results.streamingLink.tracks || [];
 
-        player = new Artplayer({ 
-            container: '#video-player', 
-            url: proxyUrl, 
-            type: 'm3u8', 
-            autoplay: true, 
-            pip: true, 
-            setting: true, 
+        player = new Artplayer({
+            container: '#video-player',
+            url: proxyUrl,
+            type: 'm3u8',
+            autoplay: true,
+            pip: true,
+            setting: true,
             fullscreen: true,
-            customType: { 
-                m3u8: (video, url) => { 
-                    const hls = new Hls(); 
-                    hls.loadSource(url); 
-                    hls.attachMedia(video); 
-                } 
+            customType: {
+                m3u8: (video, url) => {
+                    const hls = new Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                }
             },
             controls: [
                 {
@@ -707,7 +725,7 @@ async function handleServerSelection(selectedValue) {
 
         if (subtitles.length > 0) {
             const captionIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 16 240 240" width="28" height="28"><path d="M215,40H25c-2.7,0-5,2.2-5,5v150c0,2.7,2.2,5,5,5h190c2.7,0,5-2.2,5-5V45C220,42.2,217.8,40,215,40z M108.1,137.7c0.7-0.7,1.5-1.5,2.4-2.3l6.6,7.8c-2.2,2.4-5,4.4-8,5.8c-8,3.5-17.3,2.4-24.3-2.9c-3.9-3.6-5.9-8.7-5.5-14v-25.6c0-2.7,0.5-5.3,1.5-7.8c0.9-2.2,2.4-4.3,4.2-5.9c5.7-4.5,13.2-6.2,20.3-4.6c3.3,0.5,6.3,2,8.7,4.3c1.3,1.3,2.5,2.6,3.5,4.2l-7.1,6.9c-2.4-3.7-6.5-5.9-10.9-5.9c-2.4-0.2-4.8,0.7-6.6,2.3c-1.7,1.7-2.5,4.1-2.4,6.5v25.6C90.4,141.7,102,143.5,108.1,137.7z M152.9,137.7c0.7-0.7,1.5-1.5,2.4-2.3l6.6,7.8c-2.2,2.4-5,4.4-8,5.8c-8,3.5-17.3,2.4-24.3-2.9c-3.9-3.6-5.9-8.7-5.5-14v-25.6c0-2.7,0.5-5.3,1.5-7.8c0.9-2.2,2.4-4.3,4.2-5.9c5.7-4.5,13.2-6.2,20.3-4.6c3.3,0.5,6.3,2,8.7,4.3c1.3,1.3,2.5,2.6,3.5,4.2l-7.1,6.9c-2.4-3.7-6.5-5.9-10.9-5.9c-2.4-0.2-4.8,0.7-6.6,2.3c-1.7,1.7-2.5,4.1-2.4,6.5v25.6C135.2,141.7,146.8,143.5,152.9,137.7z" fill="#fff"></path></svg>`;
-            
+
             const defaultEnglishSub = subtitles.find(sub => sub.label.toLowerCase() === "english" && sub.default) || subtitles.find(sub => sub.label.toLowerCase() === "english");
 
             player.setting.add({
@@ -755,24 +773,58 @@ async function handleServerSelection(selectedValue) {
 
 async function fetchServersForEpisode(episodeId) {
     if (player) player.destroy();
-    setState({ isLoading: true, selectedEpisodeId: episodeId, availableSubServers: [], availableDubServers: [] });
+    setState({ isLoading: true, selectedEpisodeId: episodeId, availableServers: [] });
     try {
-        const serversRes = await fetch(`${API_BASE}/servers/${episodeId.split('?ep=')[0]}?ep=${episodeId.split('?ep=')[1]}`);
-        const serversData = await serversRes.json();
-        if (!serversData.results || !Array.isArray(serversData.results)) throw new Error("Invalid server data.");
-        
-        const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
-        const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
-        
-        setState({ availableSubServers: subServers, availableDubServers: dubServers, isLoading: false });
+        // 1. Fetch primary servers
+        const primaryServersRes = await fetch(`${API_BASE}/servers/${episodeId.split('?ep=')[0]}?ep=${episodeId.split('?ep=')[1]}`);
+        const primaryServersData = await primaryServersRes.json();
+        if (!primaryServersData.results || !Array.isArray(primaryServersData.results)) {
+            throw new Error("Invalid primary server data.");
+        }
 
-        const preferredServer = 'HD-2';
+        const primaryServers = primaryServersData.results.map(s => ({
+            name: s.serverName,
+            type: s.type,
+            source: 'primary'
+        }));
+
+        let allServers = [...primaryServers];
+
+        // 2. Fetch and merge fallback servers
+        if (primaryServers.length > 0) {
+            try {
+                const firstServer = primaryServers[0];
+                const fallbackUrl = `${API_BASE}/stream/fallback?id=${episodeId}&server=${firstServer.name}&type=${firstServer.type}`;
+                const fallbackRes = await fetch(fallbackUrl);
+                const fallbackData = await fallbackRes.json();
+
+                if (fallbackData.results?.servers && Array.isArray(fallbackData.results.servers)) {
+                    const primaryServerKeys = new Set(primaryServers.map(s => `${s.name}|${s.type}`));
+                    
+                    const fallbackServers = fallbackData.results.servers.map(s => {
+                        const newName = primaryServerKeys.has(`${s.serverName}|${s.type}`)
+                            ? `${s.serverName} (v2)`
+                            : s.serverName;
+                        return { name: newName, type: s.type, source: 'fallback', originalName: s.serverName };
+                    });
+                    allServers.push(...fallbackServers);
+                }
+            } catch (fallbackErr) {
+                console.warn("Could not fetch fallback servers, proceeding with primary ones.", fallbackErr);
+            }
+        }
+        
+        setState({ availableServers: allServers, isLoading: false });
+
+        // Auto-select a preferred server
+        const preferredServerName = 'HD-2';
+        const preferredServer = allServers.find(s => s.name === preferredServerName && s.type === 'sub') || allServers.find(s => s.originalName === preferredServerName && s.type === 'sub');
+
         // Use a short timeout to allow the DOM to update from setState before we manipulate it
         setTimeout(() => {
-            if (subServers.includes(preferredServer)) {
-                handleServerSelection(`${preferredServer}|sub`);
-            } else if (dubServers.includes(preferredServer)) {
-                handleServerSelection(`${preferredServer}|dub`);
+            if (preferredServer) {
+                const value = `${preferredServer.name}|${preferredServer.type}|${preferredServer.source}|${preferredServer.originalName || preferredServer.name}`;
+                handleServerSelection(value);
             }
         }, 0);
 
@@ -859,8 +911,7 @@ function handleGoHome() {
         animeDetailsForModal: null,
         animeEpisodes: [],
         selectedEpisodeId: null,
-        availableSubServers: [],
-        availableDubServers: [],
+        availableServers: [],
         videoSrc: null,
         error: null,
     });
