@@ -1,7 +1,7 @@
 <p align="center">
     <h3 align="center">TheAnimeDB - Your Ad-free Anime Database/Streaming Platform</h3>
   <div align="center">
-    <a href="https://zenime.site/">
+    <a href="https://theanimedb.carlodee-official.workers.dev/">
       <img alt="TheAnimeDB" src="https://github.com/user-attachments/assets/460e7549-b900-418a-8f73-d09f9bd229d5"/>
     </a>
   </div>
