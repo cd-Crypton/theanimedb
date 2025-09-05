@@ -41,7 +41,7 @@ const MENU_ITEMS = [
     { title: 'ONA', endpoint: '/ona' },
 ];
 
-const API_BASE = 'https://crypton-api.vercel.app/api';
+const API_BASE = 'https://theanimedb-api.vercel.app/api';
 
 const setState = (newState) => {
     state = { ...state, ...newState };
