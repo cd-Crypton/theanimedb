@@ -71,14 +71,26 @@ const ErrorDisplay = (message, showBackButton = false) => {
     </div>`;
 };
 
-function toggleSummary(button) {
-    const summary = document.getElementById('summary-text');
-    if (summary.classList.contains('line-clamp-9')) {
-        summary.classList.remove('line-clamp-9');
-        button.textContent = 'See less...';
+// --- MODIFICATION: Updated function to toggle summary with inline link ---
+function toggleSummary(event) {
+    event.preventDefault();
+    const summaryP = document.getElementById('summary-text');
+    const contentSpan = document.getElementById('summary-content');
+    const ellipsisSpan = document.getElementById('summary-ellipsis');
+    const toggleLink = document.getElementById('summary-toggle');
+    const fullText = summaryP.dataset.fullText;
+    const isExpanded = toggleLink.textContent.trim() === 'See less...';
+
+    if (isExpanded) {
+        // Collapse
+        contentSpan.textContent = fullText.substring(0, 550);
+        ellipsisSpan.style.display = 'inline';
+        toggleLink.textContent = 'See more...';
     } else {
-        summary.classList.add('line-clamp-9');
-        button.textContent = 'See more...';
+        // Expand
+        contentSpan.textContent = fullText;
+        ellipsisSpan.style.display = 'none';
+        toggleLink.textContent = ' See less...';
     }
 }
 
@@ -98,11 +110,22 @@ const renderInfoModal = () => {
     const genres = details.animeInfo.Genres ? details.animeInfo.Genres.join(', ') : 'N/A';
     const summary = details.animeInfo.Overview || 'No summary available.';
     
+    // --- MODIFICATION: JS-based summary truncation for inline "See more" ---
     const summaryNeedsTruncation = summary.length > 550; 
-    let summaryHtml = `<p id="summary-text" class="text-gray-300 mb-6 ${summaryNeedsTruncation ? 'line-clamp-9' : ''}"><span class="font-semibold text-white">Summary:</span> ${summary}</p>`;
+    let summaryHtml = '';
     if (summaryNeedsTruncation) {
-        summaryHtml += `<button onclick="toggleSummary(this)" class="text-blue-400 hover:text-blue-300 font-semibold">See more...</button>`;
+        const truncatedText = summary.substring(0, 550);
+        // Using data-* attribute to store full text
+        summaryHtml = `
+            <p id="summary-text" class="text-gray-300 text-justify" data-full-text="${summary.replace(/"/g, '&quot;')}">
+                <span class="font-semibold text-white">Summary:</span>
+                <span id="summary-content">${truncatedText}</span><span id="summary-ellipsis">... </span>
+                <a href="#" id="summary-toggle" onclick="toggleSummary(event)" class="text-blue-400 hover:text-blue-300 font-semibold">See more...</a>
+            </p>`;
+    } else {
+        summaryHtml = `<p class="text-gray-300 text-justify"><span class="font-semibold text-white">Summary:</span> ${summary}</p>`;
     }
+
 
     modalContent.innerHTML = `
         <button onclick="hideInfoModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
@@ -122,7 +145,7 @@ const renderInfoModal = () => {
                 </div>
             </div>
             
-            <div class="md:w-2/3">
+            <div class="md:w-2/3 pr-4">
                 <h1 class="text-3xl font-extrabold text-white mb-2">${details.title}</h1>
                 <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
                 <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
