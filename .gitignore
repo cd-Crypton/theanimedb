@@ -21,3 +21,7 @@ pnpm-debug.log*
 # wrangler files
 .wrangler
 .dev.vars
+
+# local
+local.sh
+remote.sh

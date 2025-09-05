@@ -34,34 +34,38 @@ export async function fetchHomeData() {
     const recent = data.results.latestEpisode || [];
 
     const spotlightDetailsPromises = spotlights.map(async (anime) => {
+        // Find the corresponding info from the main /api results
+        const mainInfo = data.results.spotlights.find(a => a.id === anime.id);
+        const sub = mainInfo?.tvInfo?.episodeInfo?.sub ?? 0;
+        const dub = mainInfo?.tvInfo?.episodeInfo?.dub ?? 0;
+    
         try {
             const detailsRes = await fetch(`${API_BASE}/info?id=${anime.id}`);
-            if (!detailsRes.ok) return anime;
-
+            if (!detailsRes.ok) return { ...anime, sub, dub }; 
+    
             const detailsData = await detailsRes.json();
-            if (!detailsData.results?.data?.animeInfo) {
-                console.warn(`Incomplete details received for anime ID ${anime.id}, skipping spotlight enrichment.`);
-                return anime;
-            }
-
-            const animeInfo = detailsData.results.data.animeInfo;
-
+            if (!detailsData.results?.data?.animeInfo) return { ...anime, sub, dub };
+    
+            const animeData = detailsData.results.data;
+            const animeInfo = animeData.animeInfo;
+    
             const releaseDate = animeInfo.Aired
                 ? animeInfo.Aired.replace(/-/g, ' ').replace(/\s+to\s+\?$/, '').trim()
                 : 'N/A';
-
             const duration = animeInfo.Duration ? animeInfo.Duration.split(' ')[0] : null;
-
+    
             return {
                 ...anime,
-                showType: detailsData.results.data.showType,
+                showType: animeData.showType,
                 genres: animeInfo.Genres,
                 duration: duration,
                 releaseDate: releaseDate,
+                sub,
+                dub
             };
         } catch (err) {
             console.error(`Failed to fetch details for anime ID ${anime.id}:`, err);
-            return anime;
+            return { ...anime, sub, dub };
         }
     });
 

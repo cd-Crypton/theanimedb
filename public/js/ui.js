@@ -180,9 +180,57 @@ const SpotlightBanner = (spotlights) => {
     if (!spotlights || spotlights.length === 0) return '';
 
     const slides = spotlights.map((anime, index) => {
-        const type = anime.showType || 'N/A';
-        const duration = anime.duration || 'N/A';
-        const releaseDate = anime.releaseDate || 'N/A';
+        const infoItems = [];
+
+        // Type
+        if (anime.showType) {
+            infoItems.push(`
+            <div class="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.25 3A2.25 2.25 0 0 0 1 5.25v7.5A2.25 2.25 0 0 0 3.25 15h13.5A2.25 2.25 0 0 0 19 12.75v-7.5A2.25 2.25 0 0 0 16.75 3H3.25ZM9 17.5a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75ZM12.25 18a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0 0 1.5h3a.75.75 0 0 0 .75-.75Z" clip-rule="evenodd" /></svg>
+                <span>${anime.showType}</span>
+            </div>`);
+        }
+
+        // Duration
+        if (anime.duration) {
+            infoItems.push(`
+            <div class="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clip-rule="evenodd" /></svg>
+                <span>${anime.duration}</span>
+            </div>`);
+        }
+
+        // Release Date
+        if (anime.releaseDate && anime.releaseDate !== 'N/A') {
+             infoItems.push(`
+            <div class="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
+                <span>${anime.releaseDate}</span>
+            </div>`);
+        }
+
+        // HD Badge
+        infoItems.push(`
+            <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold bg-blue-700 px-2 py-0.5 rounded">HD</span>
+            </div>`);
+
+        // Sub/Dub Count
+        if (anime.sub) {
+            infoItems.push(`
+            <div class="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 017 8a1 1 0 10-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-1v-2.07z" clip-rule="evenodd" /></svg>
+                <span>${anime.sub}</span>
+            </div>`);
+        }
+
+        if (anime.dub) {
+            infoItems.push(`
+            <div class="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 017 8a1 1 0 10-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-1v-2.07z" clip-rule="evenodd" /></svg>
+                <span>${anime.dub}</span>
+            </div>`);
+        }
 
         return `
         <div class="spotlight-slide ${index === 0 ? 'active' : ''}" data-index="${index}" style="background-image: url('${anime.poster}')">
@@ -192,25 +240,7 @@ const SpotlightBanner = (spotlights) => {
                 <h2 class="text-3xl md:text-5xl font-bold mb-4 line-clamp-2">${anime.title}</h2>
                 
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300 mb-4">
-                    <div class="flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.25 3A2.25 2.25 0 0 0 1 5.25v7.5A2.25 2.25 0 0 0 3.25 15h13.5A2.25 2.25 0 0 0 19 12.75v-7.5A2.25 2.25 0 0 0 16.75 3H3.25ZM9 17.5a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75ZM12.25 18a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0 0 1.5h3a.75.75 0 0 0 .75-.75Z" clip-rule="evenodd" /></svg>
-                        <span>${type}</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clip-rule="evenodd" />
-                        </svg>
-                        <span>${duration}</span>
-                    </div>
-                     <div class="flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
-                        </svg>
-                        <span>${releaseDate}</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-bold bg-gray-700 px-2 py-0.5 rounded">HD</span>
-                    </div>
+                    ${infoItems.join('')}
                 </div>
                 
                 <p class="text-gray-300 md:text-lg mb-6 max-w-2xl line-clamp-3">${anime.description}</p>
