@@ -252,15 +252,22 @@ const SpotlightBanner = (spotlights) => {
         </div>
     `}).join('');
 
+    const dots = spotlights.map((_, index) => `
+        <button 
+            onclick="handleSpotlightDotClick(${index})"
+            data-index="${index}"
+            class="spotlight-dot w-3 h-3 rounded-full transition-colors ${index === 0 ? 'bg-blue' : 'bg-blue/50 hover:bg-blue/75'}">
+        </button>
+    `).join('');
+
     return `
     <section class="relative h-[60vh] md:h-[70vh] rounded-lg overflow-hidden mb-10 group">
         ${slides}
-        <button id="spotlight-prev" class="absolute top-1/2 left-4 -translate-y-1/2 bg-black/50 p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-20">
-             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-        </button>
-        <button id="spotlight-next" class="absolute top-1/2 right-4 -translate-y-1/2 bg-black/50 p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity z-20">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-        </button>
+        ${spotlights.length > 1 ? `
+        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+            ${dots}
+        </div>
+        ` : ''}
     </section>
     `;
 };
@@ -380,9 +387,7 @@ export function renderHome(mainContent) {
     mainContent.innerHTML = (state.error ? ErrorDisplay(state.error) : '') + content;
     const searchForm = document.getElementById('search-form');
     if (searchForm) searchForm.addEventListener('submit', window.handleSearchSubmit);
-    if (document.getElementById('spotlight-prev')) {
-        document.getElementById('spotlight-prev').addEventListener('click', () => { window.prevSpotlight(); window.startSpotlightInterval(); });
-        document.getElementById('spotlight-next').addEventListener('click', () => { window.nextSpotlight(); window.startSpotlightInterval(); });
+    if (state.homeData.spotlights.length > 1) {
         window.startSpotlightInterval();
     }
 };
@@ -498,8 +503,24 @@ export function showSpotlight(index) {
     const newActiveSlide = document.querySelector(`.spotlight-slide[data-index="${index}"]`);
     if (newActiveSlide) newActiveSlide.classList.add('active');
     state.currentSpotlightIndex = index;
+
+    // Update dots
+    const dots = document.querySelectorAll('.spotlight-dot');
+    dots.forEach(dot => {
+        if (parseInt(dot.dataset.index) === index) {
+            dot.classList.add('bg-white');
+            dot.classList.remove('bg-white/50', 'hover:bg-white/75');
+        } else {
+            dot.classList.remove('bg-white');
+            dot.classList.add('bg-white/50', 'hover:bg-white/75');
+        }
+    });
 }
 
+export function handleSpotlightDotClick(index) {
+    showSpotlight(index);
+    startSpotlightInterval();
+}
 export function nextSpotlight() {
     const newIndex = (state.currentSpotlightIndex + 1) % state.homeData.spotlights.length;
     showSpotlight(newIndex);
