@@ -419,7 +419,7 @@ async function handleServerSelection(event, episodeId, serverName, type) {
     } catch (err) {
         console.error(err);
         if (player) {
-            player.notice.show = err.message;
+            player.notice.show(err.message);
         }
     }
 }
@@ -433,7 +433,7 @@ async function handleEpisodeSelection(episodeId) {
         const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
         const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
         setState({ availableSubServers: subServers, availableDubServers: dubServers, isLoading: false });
-    } catch (err) {
+    } catch (err)_ {
         console.error(err);
         setState({ error: `Failed to fetch servers: ${err.message}`, isLoading: false });
     }

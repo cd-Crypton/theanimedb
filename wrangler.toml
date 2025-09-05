@@ -7,6 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [assets]
 directory = "./public"
 not_found_handling = "single-page-application"
+binding = "ASSETS"
 
 [vars]
 ENVIRONMENT = "production"
