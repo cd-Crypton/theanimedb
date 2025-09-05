@@ -71,7 +71,6 @@ const ErrorDisplay = (message, showBackButton = false) => {
     </div>`;
 };
 
-// --- MODIFICATION START: New function to toggle summary visibility ---
 function toggleSummary(button) {
     const summary = document.getElementById('summary-text');
     if (summary.classList.contains('line-clamp-9')) {
@@ -82,7 +81,6 @@ function toggleSummary(button) {
         button.textContent = 'See more...';
     }
 }
-// --- MODIFICATION END ---
 
 
 const renderInfoModal = () => {
@@ -100,13 +98,11 @@ const renderInfoModal = () => {
     const genres = details.animeInfo.Genres ? details.animeInfo.Genres.join(', ') : 'N/A';
     const summary = details.animeInfo.Overview || 'No summary available.';
     
-    // --- MODIFICATION: Logic for summary truncation ---
     const summaryNeedsTruncation = summary.length > 550; 
     let summaryHtml = `<p id="summary-text" class="text-gray-300 mb-6 ${summaryNeedsTruncation ? 'line-clamp-9' : ''}"><span class="font-semibold text-white">Summary:</span> ${summary}</p>`;
     if (summaryNeedsTruncation) {
         summaryHtml += `<button onclick="toggleSummary(this)" class="text-blue-400 hover:text-blue-300 font-semibold">See more...</button>`;
     }
-
 
     modalContent.innerHTML = `
         <button onclick="hideInfoModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
@@ -116,12 +112,14 @@ const renderInfoModal = () => {
         </button>
         <div class="flex flex-col md:flex-row gap-8">
             <div class="md:w-1/3 flex-shrink-0">
-                <div class="p-1.5 bg-gray-900 rounded-lg">
+                <div class="p-1.5 bg-gray-800 rounded-lg">
                     <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" />
                 </div>
-                <button onclick="handleWatchNowClick('${details.id}')" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg w-full mt-4 hover:bg-blue-600 transition-colors">
-                    Watch Now
-                </button>
+                <div class="p-1.5 bg-gray-800 rounded-lg mt-2">
+                    <button onclick="handleWatchNowClick('${details.id}')" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg w-full hover:bg-blue-600 transition-colors">
+                        Watch Now
+                    </button>
+                </div>
             </div>
             
             <div class="md:w-2/3">
