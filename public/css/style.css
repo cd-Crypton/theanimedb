@@ -48,3 +48,57 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
+
+/* --- Side Menu Opacity --- */
+#side-menu {
+  background-color: rgba(31, 41, 55, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+/* --- Watch Page Layout --- */
+.watch-page-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* Mobile-first: single column */
+  gap: 1.5rem;
+}
+
+/* Tablet and larger: two columns */
+@media (min-width: 1024px) {
+  .watch-page-grid {
+    /* Episodes on left, Player + Details on right */
+    grid-template-columns: 300px 1fr; 
+  }
+  .details-column {
+     display: none; /* Hide details column on this layout */
+  }
+}
+
+/* Large desktop: three columns */
+@media (min-width: 1280px) {
+  .watch-page-grid {
+    /* Episodes, Player, Details */
+    grid-template-columns: 300px 1fr 320px;
+  }
+   .details-column {
+     display: block; /* Show details column again */
+  }
+}
+
+.episode-list-column {
+  background-color: #111827;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.details-column {
+  background-color: #111827;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.episode-button.active {
+    background-color: #3b82f6;
+    color: white;
+}

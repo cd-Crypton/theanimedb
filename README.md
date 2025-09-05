@@ -16,5 +16,13 @@
 </p>
 </p>
 <p align="center">
-    <a href="https://theanimedb.carlodee-official.workers.dev">TheAnimeDB</a> is an open-source anime streaming service that uses <a href="https://github.com/itzzzme/anime-api">Custom</a> API, built using HTML with Javascript and Tailwind CSS. It lets you easily find any anime with intuitive search & suggestion feature and stream without any ads.
- </p>
+    <a href="https://theanimedb.carlodee-official.workers.dev">TheAnimeDB</a> is an open-source anime streaming service that uses a <a href="https://github.com/itzzzme/anime-api">Custom</a> API, built using HTML with Javascript and Tailwind CSS. It lets you easily find any anime with an intuitive search & suggestion feature and stream without any ads.
+  </p>
+
+---
+
+## Disclaimer
+
+**TheAnimeDB does not host any files on its servers.** All content is provided by non-affiliated third parties. All legal issues should be directed to the respective file hosts and providers, as TheAnimeDB is not responsible for any media files shown.
+
+This project is for educational, entertainment and non-commercial purposes only.
