@@ -1,4 +1,4 @@
-name = "theanimedb"
+name = "theanimedbtest"
 main = "public/_workers.js"
 compatibility_date = "2025-06-05"
 compatibility_flags = ["nodejs_compat"] 
