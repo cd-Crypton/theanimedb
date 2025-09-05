@@ -39,29 +39,28 @@
   </div>
 
   <div id="app" class="flex flex-col min-h-screen px-4 sm:px-6 lg:px-8">
-    <header class="fixed top-[0px] w-full z-50 bg-gray-900/80 backdrop-blur-sm -ml-10">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        <div class="flex flex-row items-center justify-between gap-2">
-          <div class="flex items-center gap-4">
+    <header class="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16 gap-4">
+          <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             <button id="menu-toggle-btn" class="text-white p-2 rounded-md hover:bg-gray-700">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
               </svg>
             </button>
-            <div class="flex flex-col items-center sm:items-start min-w-0 cursor-pointer" onclick="handleGoHome()"> 
-                <h1 class="text-lg sm:text-2xl font-extrabold leading-none">
-                    <span class="text-white">TheAnime</span><span class="text-blue-500">DB</span>
-                </h1>
+            <div class="flex items-center gap-2 cursor-pointer" onclick="handleGoHome()">
+              <img src="/img/tadb.svg" alt="TheAnimeDB Logo" class="h-8 w-8">
+              <h1 class="text-lg sm:text-2xl font-extrabold leading-none animated-gradient-text">TheAnimeDB</h1>
             </div>
           </div>
           
-          <div id="search-bar-container" class="sm:w-auto sm:max-w-xs md:max-w-sm mr-[10px]">
+          <div id="search-bar-container" class="w-full max-w-[150px] sm:max-w-xs">
             </div>
         </div>
       </div>
     </header>
 
-    <main id="main-content" class="mt-20 flex-grow">
+    <main id="main-content" class="mt-16 flex-grow">
       </main>
 
     <footer class="text-center mt-12 mb-4 text-gray-500 text-sm">
@@ -72,6 +71,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script src="/js/script.js"></script>
+  <script type="module" src="/js/main.js"></script>
 </body>
 </html>

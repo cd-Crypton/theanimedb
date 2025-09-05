@@ -87,3 +87,23 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   background-color: #374151; /* Gray */
   color: #D1D5DB; /* Lighter gray for text */
 }
+
+/* Animated Gradient Text for Logo */
+.animated-gradient-text {
+  background: linear-gradient(
+    to right,
+    #ffffff 20%, 
+    #60a5fa 40%, 
+    #3b82f6 60%, 
+    #ffffff 80%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-gradient-animation 4s linear infinite;
+}
+
+@keyframes text-gradient-animation {
+  to { background-position: -200% center; }
+}
