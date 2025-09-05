@@ -48,3 +48,19 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
+
+/* Modal Animation */
+#info-modal-content {
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

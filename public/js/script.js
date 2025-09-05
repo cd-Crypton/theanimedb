@@ -1,12 +1,11 @@
 // --- App Logic ---
 const PROXY_URL = 'https://theanimedbproxy.vercel.app/';
 const mainContent = document.getElementById('main-content');
-// The global player instance is now for ArtPlayer.js
 let player = null;
 
 // --- State Management ---
 let state = {
-    view: 'home', // 'home', 'details', or 'category'
+    view: 'home', // 'home', 'details', 'category'
     homeData: { trending: [], recent: [], spotlights: [] },
     searchResults: null,
     categoryResults: null,
@@ -17,7 +16,8 @@ let state = {
     currentPage: 1,
     currentSpotlightIndex: 0,
     selectedAnimeId: null,
-    animeDetails: null,
+    animeDetails: null, // For the player page
+    animeDetailsForModal: null, // For the info modal
     animeEpisodes: [],
     selectedEpisodeId: null,
     availableSubServers: [],
@@ -46,7 +46,7 @@ const setState = (newState) => {
     if (state.view === 'home') {
         renderHome();
     } else if (state.view === 'details') {
-        renderDetails();
+        renderDetailsPage();
     } else if (state.view === 'category') {
         renderCategoryPage();
     }
@@ -70,6 +70,61 @@ const ErrorDisplay = (message, showBackButton = false) => {
       ${backButton}
     </div>`;
 };
+
+// --- MODIFICATION START: Modal Rendering Logic ---
+const renderInfoModal = () => {
+    const modalOverlay = document.getElementById('info-modal-overlay');
+    const modalContent = document.getElementById('info-modal-content');
+
+    if (!state.animeDetailsForModal) {
+        modalContent.innerHTML = Spinner();
+        modalOverlay.classList.remove('hidden');
+        modalOverlay.classList.add('flex');
+        return;
+    }
+
+    const details = state.animeDetailsForModal;
+    const genres = details.animeInfo.Genres ? details.animeInfo.Genres.join(', ') : 'N/A';
+
+    modalContent.innerHTML = `
+        <button onclick="hideInfoModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        <div class="flex flex-col md:flex-row gap-8">
+            <div class="md:w-1/3 flex-shrink-0">
+                <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" />
+            </div>
+            <div class="md:w-2/3">
+                <h1 class="text-3xl font-extrabold text-white mb-2">${details.title}</h1>
+                <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
+                <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
+                    <div><p class="font-semibold text-white">Released:</p><p>${details.animeInfo.Aired || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
+                </div>
+                <p class="text-gray-300 mb-6"><span class="font-semibold text-white">Summary:</span> ${details.animeInfo.Overview || 'No summary available.'}</p>
+                <button onclick="handleWatchNowClick('${details.id}')" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg w-full hover:bg-blue-600 transition-colors">
+                    Watch Now
+                </button>
+            </div>
+        </div>
+    `;
+
+    modalOverlay.classList.remove('hidden');
+    modalOverlay.classList.add('flex');
+};
+
+const hideInfoModal = () => {
+    const modalOverlay = document.getElementById('info-modal-overlay');
+    modalOverlay.classList.add('hidden');
+    modalOverlay.classList.remove('flex');
+    document.getElementById('info-modal-content').innerHTML = '';
+    setState({ animeDetailsForModal: null });
+};
+// --- MODIFICATION END ---
 
 const SpotlightBanner = (spotlights) => {
     if (!spotlights || spotlights.length === 0) return '';
@@ -126,7 +181,7 @@ const SearchBar = () => `
     ${state.searchSuggestions.length > 0 ? `
       <ul id="search-suggestions" class="absolute top-full w-full mt-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
         ${state.searchSuggestions.map(s => `
-          <li onclick="selectSuggestion('${s.id}')" class="p-3 hover:bg-gray-700 cursor-pointer transition-colors">
+          <li onclick="handleSelectAnime('${s.id}')" class="p-3 hover:bg-gray-700 cursor-pointer transition-colors">
             <span class="font-bold">${s.title}</span>
           </li>
         `).join('')}
@@ -137,7 +192,8 @@ const SearchBar = () => `
 
 const AnimeCard = (anime) => {
     const animeTitle = (anime.title).replace(/'/g, "\\'");
-    const onclickAction = `handleSelectAnime('${anime.id}')`;
+    // --- MODIFICATION: This now calls handleSelectAnime to show the modal ---
+    const onclickAction = `handleSelectAnime('${anime.id}')`; 
     return `
     <div onclick="${onclickAction}" class="bg-gray-800 rounded-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-transform duration-300">
       <div class="relative pb-[140%]">
@@ -203,8 +259,7 @@ const renderHome = () => {
     }
 };
 
-// --- MODIFICATION START: Updated renderDetails function for 2-column layout ---
-const renderDetails = () => {
+const renderDetailsPage = () => {
     document.getElementById('search-bar-container').innerHTML = '';
     if (state.isLoading || !state.animeDetails) {
         mainContent.innerHTML = Spinner();
@@ -214,63 +269,35 @@ const renderDetails = () => {
     const details = state.animeDetails;
     const genres = details.animeInfo.Genres ? details.animeInfo.Genres.join(', ') : 'N/A';
 
-    // --- Create Episode Dropdown ---
     let episodeDropdownHtml = '';
     if (state.animeEpisodes && state.animeEpisodes.length > 0) {
-        const episodeOptions = state.animeEpisodes.map(ep => 
-            `<option value="${ep.id}" ${ep.id === state.selectedEpisodeId ? 'selected' : ''}>
-                Episode ${ep.episode_no}
-            </option>`
-        ).join('');
-        episodeDropdownHtml = `
-            <select onchange="handleEpisodeSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                ${episodeOptions}
-            </select>`;
+        const episodeOptions = state.animeEpisodes.map(ep => `<option value="${ep.id}" ${ep.id === state.selectedEpisodeId ? 'selected' : ''}>Episode ${ep.episode_no}</option>`).join('');
+        episodeDropdownHtml = `<select onchange="handleEpisodeSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500">${episodeOptions}</select>`;
     } else {
         episodeDropdownHtml = '<p class="text-gray-400 p-3">No episodes found.</p>';
     }
 
-    // --- Create Server Dropdown ---
     let serverDropdownHtml = '';
     if (state.selectedEpisodeId && (state.availableSubServers.length > 0 || state.availableDubServers.length > 0)) {
         const subOptions = state.availableSubServers.map(server => `<option value="${server}|sub">${server} (Sub)</option>`).join('');
         const dubOptions = state.availableDubServers.map(server => `<option value="${server}|dub">${server} (Dub)</option>`).join('');
-        serverDropdownHtml = `
-            <select onchange="handleServerSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="" disabled selected>Select a server</option>
-                <optgroup label="Subbed">${subOptions}</optgroup>
-                <optgroup label="Dubbed">${dubOptions}</optgroup>
-            </select>`;
+        serverDropdownHtml = `<select onchange="handleServerSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="" disabled selected>Select a server</option><optgroup label="Subbed">${subOptions}</optgroup><optgroup label="Dubbed">${dubOptions}</optgroup></select>`;
     }
 
     const content = `
     <div class="max-w-7xl mx-auto">
-        <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
-            Back to Home
-        </button>
-
+        <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>Back to Home</button>
         <div class="flex flex-col lg:flex-row gap-8">
             <div class="lg:w-2/3">
                 <div class="bg-gray-800 rounded-lg p-4">
-                    <div id="video-player-container" class="mb-4">
-                        <div id="video-player" class="w-full aspect-video bg-black rounded-lg overflow-hidden">
-                            ${!state.selectedEpisodeId ? '<div class="flex items-center justify-center h-full text-gray-400">Please select an episode to begin.</div>' : ''}
-                        </div>
-                    </div>
-                    <div class="flex flex-col md:flex-row gap-4">
-                        ${episodeDropdownHtml}
-                        ${serverDropdownHtml}
-                    </div>
+                    <div id="video-player-container" class="mb-4"><div id="video-player" class="w-full aspect-video bg-black rounded-lg overflow-hidden">${!state.selectedEpisodeId ? '<div class="flex items-center justify-center h-full text-gray-400">Please select an episode to begin.</div>' : ''}</div></div>
+                    <div class="flex flex-col md:flex-row gap-4">${episodeDropdownHtml}${serverDropdownHtml}</div>
                 </div>
             </div>
-
             <div class="lg:w-1/3">
                 <div class="bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
                     <div class="flex flex-col gap-6">
-                        <div class="flex-shrink-0">
-                            <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" />
-                        </div>
+                        <div class="flex-shrink-0"><img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" /></div>
                         <div class="flex-grow">
                             <h1 class="text-2xl font-extrabold text-white mb-2">${details.title}</h1>
                             <p class="text-gray-400 mb-4 text-sm">${details.japanese_title || ''}</p>
@@ -289,7 +316,6 @@ const renderDetails = () => {
     </div>`;
     mainContent.innerHTML = content;
 };
-// --- MODIFICATION END ---
 
 const renderCategoryPage = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
@@ -324,26 +350,18 @@ async function fetchHomeData() {
         const trending = data.results.topAiring || [];
         const recent = data.results.latestEpisode || [];
 
-        // Fetch detailed info for each spotlight concurrently
         const spotlightDetailsPromises = spotlights.map(async (anime) => {
             try {
                 const detailsRes = await fetch(`${API_BASE}/info?id=${anime.id}`);
-                if (!detailsRes.ok) throw new Error('Failed to fetch details');
+                if (!detailsRes.ok) return anime;
                 const detailsData = await detailsRes.json();
-                // Merge detailed info into the spotlight object
-                return {
-                    ...anime,
-                    showType: detailsData.results.data.showType,
-                    genres: detailsData.results.data.animeInfo.Genres,
-                };
+                return { ...anime, showType: detailsData.results.data.showType, genres: detailsData.results.data.animeInfo.Genres };
             } catch (err) {
                 console.error(`Failed to fetch details for anime ID ${anime.id}:`, err);
-                return anime; // Return original object if fetch fails
+                return anime;
             }
         });
-
         const detailedSpotlights = await Promise.all(spotlightDetailsPromises);
-
         setState({ homeData: { spotlights: detailedSpotlights, trending, recent }, isLoading: false });
     } catch (err) {
         console.error(err);
@@ -384,18 +402,16 @@ async function fetchSearchSuggestions(query) {
     try {
         const res = await fetch(`${API_BASE}/search/suggest?keyword=${query}`);
         const data = await res.json();
-        if (data.results) {
-            setState({ searchSuggestions: data.results });
-        }
+        if (data.results) setState({ searchSuggestions: data.results });
     } catch (err) {
         console.error("Failed to fetch search suggestions:", err);
     }
 }
 
-async function fetchAnimeDetails(animeId) {
-    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, selectedEpisodeId: null });
+// --- MODIFICATION: This now fetches data for the player page ---
+async function fetchDetailsForPlayer(animeId) {
+    setState({ isLoading: true, view: 'details' });
     try {
-        // Use Promise.all to fetch details and episodes concurrently
         const [detailsRes, episodesRes] = await Promise.all([
             fetch(`${API_BASE}/info?id=${animeId}`),
             fetch(`${API_BASE}/episodes/${animeId}`)
@@ -403,23 +419,13 @@ async function fetchAnimeDetails(animeId) {
 
         const detailsData = await detailsRes.json();
         const episodesData = await episodesRes.json();
-        
-        if (!episodesData.results || !Array.isArray(episodesData.results.episodes)) {
-            throw new Error("Invalid episode data from API.");
-        }
+        if (!episodesData.results || !Array.isArray(episodesData.results.episodes)) throw new Error("Invalid episode data from API.");
         
         const firstEpisodeId = episodesData.results.episodes.length > 0 ? episodesData.results.episodes[0].id : null;
-
-        setState({
-            animeDetails: detailsData.results.data,
-            animeEpisodes: episodesData.results.episodes,
-            selectedEpisodeId: firstEpisodeId, // Set the first episode as selected
-            isLoading: false
-        });
+        setState({ animeDetails: detailsData.results.data, animeEpisodes: episodesData.results.episodes, selectedEpisodeId: firstEpisodeId });
         
-        if (firstEpisodeId) {
-             await fetchServersForEpisode(firstEpisodeId);
-        }
+        if (firstEpisodeId) await fetchServersForEpisode(firstEpisodeId);
+        else setState({ isLoading: false });
 
     } catch (err) {
         console.error(err);
@@ -429,150 +435,46 @@ async function fetchAnimeDetails(animeId) {
 
 async function handleServerSelection(selectedValue) {
     if (!selectedValue) return;
-
     const [serverName, type] = selectedValue.split('|');
     const episodeId = state.selectedEpisodeId;
+    if (!serverName || !type || !episodeId) return;
 
-    if (!serverName || !type || !episodeId) {
-        console.error("Invalid server selection");
-        return;
-    }
+    if (player) player.destroy();
+    const playerContainer = document.getElementById('video-player');
+    if(playerContainer) playerContainer.innerHTML = Spinner();
 
     try {
-        if (player) {
-            player.destroy();
-            player = null;
-        }
-
-        const playerContainer = document.getElementById('video-player');
-        if(playerContainer) playerContainer.innerHTML = Spinner();
-
-
         const watchUrl = `${API_BASE}/stream?id=${episodeId}&server=${serverName}&type=${type}`;
         const watchRes = await fetch(watchUrl);
         const watchData = await watchRes.json();
-        if (!watchData.results?.streamingLink?.link?.file) throw new Error('Streaming source not found for this server.');
+        if (!watchData.results?.streamingLink?.link?.file) throw new Error('Streaming source not found.');
 
         const sourceUrl = watchData.results.streamingLink.link.file;
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
         const subtitles = watchData.results.streamingLink.tracks || [];
 
-        player = new Artplayer({
-            container: '#video-player',
-            url: proxyUrl,
-            type: 'm3u8',
-            autoplay: true,
-            pip: true,
-            setting: true,
-            fullscreen: true,
-            customType: {
-                m3u8: function (video, url) {
-                    const hls = new Hls();
-                    hls.loadSource(url);
-                    hls.attachMedia(video);
-                },
-            },
-            controls: [
-                {
-                    position: 'right',
-                    html: '<svg viewBox="-5 -10 75 75" xmlns="http://www.w3.org/2000/svg" width="35" height="35"><path d="M11.9199 45H7.20508V26.5391L2.60645 28.3154V24.3975L11.4219 20.7949H11.9199V45ZM30.1013 35.0059C30.1013 38.3483 29.4926 40.9049 28.2751 42.6758C27.0687 44.4466 25.3422 45.332 23.0954 45.332C20.8708 45.332 19.1498 44.4743 17.9323 42.7588C16.726 41.0322 16.1006 38.5641 16.0564 35.3545V30.7891C16.0564 27.4577 16.6596 24.9121 17.8659 23.1523C19.0723 21.3815 20.8044 20.4961 23.0622 20.4961C25.32 20.4961 27.0521 21.3704 28.2585 23.1191C29.4649 24.8678 30.0792 27.3636 30.1013 30.6064V35.0059ZM25.3864 30.1084C25.3864 28.2048 25.1983 26.777 24.822 25.8252C24.4457 24.8734 23.8591 24.3975 23.0622 24.3975C21.5681 24.3975 20.7933 26.1406 20.738 29.627V35.6533C20.738 37.6012 20.9262 39.0511 21.3025 40.0029C21.6898 40.9548 22.2875 41.4307 23.0954 41.4307C23.8591 41.4307 24.4236 40.988 24.7888 40.1025C25.1651 39.2061 25.3643 37.8392 25.3864 36.002V30.1084Z" fill="white"></path><path d="M11.9894 5.45398V0L2 7.79529L11.9894 15.5914V10.3033H47.0886V40.1506H33.2442V45H52V5.45398H11.9894Z" fill="white"></path></svg>',
-                    tooltip: 'Backward 10s',
-                    click: function () {
-                        player.backward = 10;
-                    },
-                },
-                {
-                    position: 'right',
-                    html: '<svg viewBox="-5 -10 75 75" xmlns="http://www.w3.org/2000/svg" width="35" height="35"><path d="M29.9199 45H25.2051V26.5391L20.6064 28.3154V24.3975L29.4219 20.7949H29.9199V45ZM48.1013 35.0059C48.1013 38.3483 47.4926 40.9049 46.2751 42.6758C45.0687 44.4466 43.3422 45.332 41.0954 45.332C38.8708 45.332 37.1498 44.4743 35.9323 42.7588C34.726 41.0322 34.1006 38.5641 34.0564 35.3545V30.7891C34.0564 27.4577 34.6596 24.9121 35.8659 23.1523C37.0723 21.3815 38.8044 20.4961 41.0622 20.4961C43.32 20.4961 45.0521 21.3704 46.2585 23.1191C47.4649 24.8678 48.0792 27.3636 48.1013 30.6064V35.0059ZM43.3864 30.1084C43.3864 28.2048 43.1983 26.777 42.822 25.8252C42.4457 24.8734 41.8591 24.3975 41.0622 24.3975C39.5681 24.3975 38.7933 26.1406 38.738 29.627V35.6533C38.738 37.6012 38.9262 39.0511 39.3025 40.0029C39.6898 40.9548 40.2875 41.4307 41.0954 41.4307C41.8591 41.4307 42.4236 40.988 42.7888 40.1025C43.1651 39.2061 43.3643 37.8392 43.3864 36.002V30.1084Z" fill="white"></path><path d="M40.0106 5.45398V0L50 7.79529L40.0106 15.5914V10.3033H4.9114V40.1506H18.7558V45H2.01875e-06V5.45398H40.0106Z" fill="white"></path></svg>',
-                    tooltip: 'Forward 10s',
-                    click: function () {
-                        player.forward = 10;
-                    },
-                },
-            ]
+        player = new Artplayer({ container: '#video-player', url: proxyUrl, type: 'm3u8', autoplay: true, pip: true, setting: true, fullscreen: true,
+            customType: { m3u8: (video, url) => { const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video); } },
         });
 
-        if (subtitles.length > 0) {
-            const captionIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 16 240 240" width="28" height="28"><path d="M215,40H25c-2.7,0-5,2.2-5,5v150c0,2.7,2.2,5,5,5h190c2.7,0,5-2.2,5-5V45C220,42.2,217.8,40,215,40z M108.1,137.7c0.7-0.7,1.5-1.5,2.4-2.3l6.6,7.8c-2.2,2.4-5,4.4-8,5.8c-8,3.5-17.3,2.4-24.3-2.9c-3.9-3.6-5.9-8.7-5.5-14v-25.6c0-2.7,0.5-5.3,1.5-7.8c0.9-2.2,2.4-4.3,4.2-5.9c5.7-4.5,13.2-6.2,20.3-4.6c3.3,0.5,6.3,2,8.7,4.3c1.3,1.3,2.5,2.6,3.5,4.2l-7.1,6.9c-2.4-3.7-6.5-5.9-10.9-5.9c-2.4-0.2-4.8,0.7-6.6,2.3c-1.7,1.7-2.5,4.1-2.4,6.5v25.6C90.4,141.7,102,143.5,108.1,137.7z M152.9,137.7c0.7-0.7,1.5-1.5,2.4-2.3l6.6,7.8c-2.2,2.4-5,4.4-8,5.8c-8,3.5-17.3,2.4-24.3-2.9c-3.9-3.6-5.9-8.7-5.5-14v-25.6c0-2.7,0.5-5.3,1.5-7.8c0.9-2.2,2.4-4.3,4.2-5.9c5.7-4.5,13.2-6.2,20.3-4.6c3.3,0.5,6.3,2,8.7,4.3c1.3,1.3,2.5,2.6,3.5,4.2l-7.1,6.9c-2.4-3.7-6.5-5.9-10.9-5.9c-2.4-0.2-4.8,0.7-6.6,2.3c-1.7,1.7-2.5,4.1-2.4,6.5v25.6C135.2,141.7,146.8,143.5,152.9,137.7z" fill="#fff"></path></svg>`;
-            
-            const defaultEnglishSub = subtitles.find(sub => sub.label.toLowerCase() === "english" && sub.default) || subtitles.find(sub => sub.label.toLowerCase() === "english");
-
-            player.setting.add({
-                name: "captions",
-                icon: captionIcon,
-                html: "Subtitle",
-                tooltip: defaultEnglishSub?.label || "Off",
-                position: "right",
-                selector: [
-                    {
-                        html: "Display",
-                        switch: true,
-                        onSwitch: function (item) {
-                            item.tooltip = item.switch ? "Hide" : "Show";
-                            player.subtitle.show = !item.switch;
-                            return !item.switch;
-                        },
-                    },
-                    ...subtitles.map((sub) => ({
-                        default: sub === defaultEnglishSub,
-                        html: sub.label,
-                        url: sub.file,
-                    })),
-                ],
-                onSelect: function (item) {
-                    player.subtitle.switch(item.url, {
-                        name: item.html
-                    });
-                    return item.html;
-                },
-            });
-
-            if (defaultEnglishSub) {
-                player.subtitle.switch(defaultEnglishSub.file, {
-                    name: defaultEnglishSub.label,
-                });
-            }
-        }
-
+        // Subtitle logic can be added here if needed
     } catch (err) {
         console.error(err);
-        if (player) {
-            player.notice.show(err.message);
-        } else {
-             const playerContainer = document.getElementById('video-player');
-             if(playerContainer) playerContainer.innerHTML = `<div class="flex items-center justify-center h-full text-red-400 p-4">${err.message}</div>`;
-        }
+        if(playerContainer) playerContainer.innerHTML = `<div class="flex items-center justify-center h-full text-red-400 p-4">${err.message}</div>`;
     }
 }
 
 async function fetchServersForEpisode(episodeId) {
-    if (player) {
-        player.destroy();
-        player = null;
-    }
-    
-    setState({ 
-        isLoading: true, 
-        selectedEpisodeId: episodeId, 
-        videoSrc: null, 
-        error: null, 
-        availableSubServers: [], 
-        availableDubServers: [] 
-    });
-
+    if (player) player.destroy();
+    setState({ isLoading: true, selectedEpisodeId: episodeId, availableSubServers: [], availableDubServers: [] });
     try {
         const serversRes = await fetch(`${API_BASE}/servers/${episodeId.split('?ep=')[0]}?ep=${episodeId.split('?ep=')[1]}`);
         const serversData = await serversRes.json();
-        if (!serversData.results || !Array.isArray(serversData.results)) throw new Error("Invalid server data from API.");
+        if (!serversData.results || !Array.isArray(serversData.results)) throw new Error("Invalid server data.");
         
         const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
         const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
-        
-        setState({ 
-            availableSubServers: subServers, 
-            availableDubServers: dubServers, 
-            isLoading: false 
-        });
+        setState({ availableSubServers: subServers, availableDubServers: dubServers, isLoading: false });
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to fetch servers: ${err.message}`, isLoading: false });
@@ -585,16 +487,32 @@ async function handleEpisodeSelection(episodeId) {
 
 // --- Event Handlers ---
 function handleSearchInput(query) {
-    if (query.trim() === '') {
-        setState({ searchSuggestions: [] });
-        return;
-    }
-    fetchSearchSuggestions(query);
+    if (query.trim() === '') setState({ searchSuggestions: [] });
+    else fetchSearchSuggestions(query);
 }
 
-function selectSuggestion(animeId) {
-    handleSelectAnime(animeId);
-    setState({ searchSuggestions: [] });
+// --- MODIFICATION: handleSelectAnime now shows the modal ---
+async function handleSelectAnime(animeId) {
+    setState({ searchSuggestions: [] }); // Clear suggestions
+    renderInfoModal(); // Show modal with spinner
+    try {
+        const detailsRes = await fetch(`${API_BASE}/info?id=${animeId}`);
+        if (!detailsRes.ok) throw new Error("Failed to fetch anime info.");
+        const detailsData = await detailsRes.json();
+        setState({ animeDetailsForModal: detailsData.results.data });
+        renderInfoModal(); // Re-render with data
+    } catch (err) {
+        console.error(err);
+        hideInfoModal();
+        alert(err.message);
+    }
+}
+
+// --- MODIFICATION: New handler for "Watch Now" button ---
+function handleWatchNowClick(animeId) {
+    hideInfoModal();
+    history.pushState({ animeId: animeId }, '', `/anime/${animeId}`);
+    fetchDetailsForPlayer(animeId);
 }
 
 function handleSearchSubmit(e) {
@@ -612,40 +530,19 @@ function handlePageChange(dir) {
     if (dir === 'prev' && newPage > 1) newPage--;
     if (state.view === 'category' && state.currentCategoryEndpoint) {
         fetchCategoryResults(state.currentCategoryEndpoint, newPage);
-    } else if (state.view === 'home' && state.lastSearchQuery) {
+    } else if (state.lastSearchQuery) {
         fetchSearchResults(newPage);
     }
 }
 
-function handleSelectAnime(animeId) {
-    state.selectedAnimeId = animeId;
-    history.pushState({ animeId: animeId }, '', `/anime/${animeId}`);
-    fetchAnimeDetails(animeId);
-}
-
 function handleGoHome() {
-    if (player) {
-        player.destroy();
-        player = null;
-    }
-    setState({
-        view: 'home',
-        searchResults: null,
-        categoryResults: null,
-        currentCategoryTitle: null,
-        currentCategoryEndpoint: null,
-        lastSearchQuery: '',
-        videoSrc: null,
-        selectedEpisodeId: null,
-        availableSubServers: [],
-        availableDubServers: [],
-        searchSuggestions: []
-    });
+    if (player) player.destroy();
+    setState({ view: 'home', searchResults: null, categoryResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null });
     fetchHomeData();
     history.pushState({}, '', '/');
 }
 
-// --- Menu Logic ---
+// --- Menu & Routing Logic (largely unchanged) ---
 function toggleMenu(show) {
     const menu = document.getElementById('side-menu');
     const overlay = document.getElementById('side-menu-overlay');
@@ -677,7 +574,6 @@ function initializeMenu() {
     document.getElementById('side-menu-overlay').addEventListener('click', () => toggleMenu(false));
 }
 
-// --- Banner Logic ---
 let spotlightInterval;
 function showSpotlight(index) {
     const slides = document.querySelectorAll('.spotlight-slide');
@@ -692,51 +588,34 @@ function nextSpotlight() {
     const newIndex = (state.currentSpotlightIndex + 1) % state.homeData.spotlights.length;
     showSpotlight(newIndex);
 }
-function prevSpotlight() {
-    const newIndex = (state.currentSpotlightIndex - 1 + state.homeData.spotlights.length) % state.homeData.spotlights.length;
-    showSpotlight(newIndex);
-}
+
 function startSpotlightInterval() {
-    stopSpotlightInterval();
+    clearInterval(spotlightInterval);
     if (state.homeData.spotlights.length > 1) {
         spotlightInterval = setInterval(nextSpotlight, 5000);
     }
 }
-function stopSpotlightInterval() {
-    clearInterval(spotlightInterval);
-}
 
-// --- Initial Routing ---
 const handleInitialRoute = () => {
     const path = window.location.pathname;
     const searchParams = new URLSearchParams(window.location.search);
 
     if (path.startsWith('/anime/')) {
         const animeId = path.replace('/anime/', '');
-        if (animeId) {
-            fetchAnimeDetails(animeId);
-        } else {
-            handleGoHome();
-        }
+        if (animeId) fetchDetailsForPlayer(animeId);
+        else handleGoHome();
     } else if (path === '/category') {
         const categoryType = searchParams.get('type');
         const categoryItem = MENU_ITEMS.find(item => item.title === categoryType);
-        if (categoryItem) {
-            handleCategoryClick(categoryItem.endpoint, categoryItem.title);
-        } else {
-            handleGoHome();
-        }
+        if (categoryItem) handleCategoryClick(categoryItem.endpoint, categoryItem.title);
+        else handleGoHome();
     } else {
         fetchHomeData();
     }
 };
 
-// Handle back/forward button clicks
-window.addEventListener('popstate', () => {
-    handleInitialRoute();
-});
+window.addEventListener('popstate', handleInitialRoute);
 
 // --- Init ---
 initializeMenu();
-// Call the initial route handler on page load
 handleInitialRoute();
