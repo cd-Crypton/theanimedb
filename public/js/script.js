@@ -1,7 +1,7 @@
 // --- App Logic ---
 const PROXY_URL = 'https://theanimedbproxy.vercel.app/';
 const mainContent = document.getElementById('main-content');
-// The global player instance is now for Video.js
+// The global player instance is now for ArtPlayer.js
 let player = null;
 
 // --- State Management ---
@@ -219,7 +219,7 @@ const renderDetails = () => {
     }
     let videoPlayerHtml = '';
     if (state.selectedEpisodeId) {
-        videoPlayerHtml = `<div class="flex justify-center mb-8"><div class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden"><video id="video-player" class="video-js vjs-theme-city vjs-big-play-centered" controls preload="auto" width="640" height="360"></video></div></div>`;
+        videoPlayerHtml = `<div class="flex justify-center mb-8"><div id="video-player" class="w-full lg:w-3/4 aspect-video bg-black rounded-lg overflow-hidden"></div></div>`;
     }
     let serverSelectionHtml = '';
     if (state.selectedEpisodeId) {
@@ -252,10 +252,6 @@ const renderDetails = () => {
         </div>
     </div>`;
     mainContent.innerHTML = content;
-    if (document.getElementById('video-player')) {
-        if (player && !player.isDisposed()) player.dispose();
-        player = videojs('video-player');
-    }
 };
 
 const renderCategoryPage = () => {
@@ -392,33 +388,38 @@ async function handleServerSelection(event, episodeId, serverName, type) {
         serverContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active-server'));
         event.target.classList.add('active-server');
     }
+
     try {
-        if (player && !player.isDisposed()) {
-            player.loadingSpinner.show();
-            player.error(null);
+        if (player) {
+            player.destroy();
         }
+
         const watchUrl = `${API_BASE}/stream?id=${episodeId}&server=${serverName}&type=${type}`;
         const watchRes = await fetch(watchUrl);
         const watchData = await watchRes.json();
         if (!watchData.results?.streamingLink?.link?.file) throw new Error('Streaming source not found for this server.');
+
         const sourceUrl = watchData.results.streamingLink.link.file;
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
-        if (player && !player.isDisposed()) {
-            player.on('error', () => {
-                const error = player.error();
-                console.error('Video.js Player Error:', error);
-                player.error({ code: 4, message: `The stream from ${serverName} failed to load. Please try another server.` });
-            });
-            player.src({ src: proxyUrl, type: 'application/x-mpegURL' });
-            player.one('loadedmetadata', () => {
-                player.loadingSpinner.hide();
-                player.play().catch(err => { console.error("Video.js play failed:", err); player.error({ code: 4, message: "Playback was prevented by the browser." }) });
-            });
-        }
+
+        player = new Artplayer({
+            container: '#video-player',
+            url: proxyUrl,
+            type: 'm3u8',
+            autoplay: true,
+            customType: {
+                m3u8: function (video, url) {
+                    const hls = new Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                },
+            },
+        });
+
     } catch (err) {
         console.error(err);
-        if (player && !player.isDisposed()) {
-            player.error({ code: 4, message: err.message });
+        if (player) {
+            player.notice.show = err.message;
         }
     }
 }
@@ -480,8 +481,8 @@ function handleSelectAnime(animeId) {
 }
 
 function handleGoHome() {
-    if (player && !player.isDisposed()) {
-        player.dispose();
+    if (player) {
+        player.destroy();
         player = null;
     }
     setState({
