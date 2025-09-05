@@ -1,6 +1,7 @@
 import { state, setState } from './state.js';
 import { fetchStreamData } from './api.js';
 import { Spinner, ErrorDisplay } from './ui.js';
+import { PROXY_URL } from './config.js';
 
 export function destroyPlayer() {
     if (state.player) {
@@ -20,7 +21,7 @@ export async function createPlayer(episodeId, serverName, type) {
         const streamData = await fetchStreamData(episodeId, serverName, type);
         playerContainer.innerHTML = '<div id="video-player"></div>';
         
-        const proxyUrl = `${location.origin}/m3u8-proxy?url=${encodeURIComponent(streamData.link.file)}`;
+        const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(streamData.link.file)}`;
         const subtitles = streamData.tracks || [];
 
         const newPlayer = new Artplayer({
@@ -54,4 +55,3 @@ export async function createPlayer(episodeId, serverName, type) {
         playerContainer.innerHTML = ErrorDisplay(err.message);
     }
 }
-
