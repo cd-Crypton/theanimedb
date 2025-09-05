@@ -152,7 +152,7 @@ const renderInfoModal = () => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </button>
-        <div class="flex flex-col md:flex-row gap-8">
+        <div class="flex flex-col md:flex-row gap-8 p-8">
             <div class="md:w-1/3 flex-shrink-0">
                 <div class="p-1.5 bg-gray-800 rounded-lg">
                     <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" />
@@ -194,19 +194,43 @@ const SpotlightBanner = (spotlights) => {
     if (!spotlights || spotlights.length === 0) return '';
 
     const slides = spotlights.map((anime, index) => {
-        const genres = anime.genres ? anime.genres.join(', ') : 'N/A';
         const type = anime.showType || 'N/A';
+        const duration = anime.duration || 'N/A';
+        const releaseDate = anime.releaseDate || 'N/A';
+
         return `
         <div class="spotlight-slide ${index === 0 ? 'active' : ''}" data-index="${index}" style="background-image: url('${anime.poster}')">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent"></div>
             <div class="relative z-10 p-8 md:p-12 lg:p-16 flex flex-col justify-end h-full text-white">
+                <p class="text-sm font-semibold text-pink-400 mb-2">#${index + 1} Spotlight</p>
                 <h2 class="text-3xl md:text-5xl font-bold mb-4 line-clamp-2">${anime.title}</h2>
-                <div class="flex flex-wrap items-center gap-2 text-sm text-gray-300 mb-2">
-                    <p class="font-semibold">${type}</p>
-                    <span class="text-gray-500">|</span>
-                    <p>${genres}</p>
+                
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300 mb-4">
+                    <div class="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 001.553.832l3-2a1 1 0 000-1.664l-3-2z" />
+                        </svg>
+                        <span>${type}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clip-rule="evenodd" />
+                        </svg>
+                        <span>${duration}</span>
+                    </div>
+                     <div class="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+                        </svg>
+                        <span>${releaseDate}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold bg-gray-700 px-2 py-0.5 rounded">HD</span>
+                    </div>
                 </div>
+                
                 <p class="text-gray-300 md:text-lg mb-6 max-w-2xl line-clamp-3">${anime.description}</p>
+                
                 <button onclick="handleSelectAnime('${anime.id}')" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg w-fit hover:bg-blue-600 transition-colors">
                     Watch Now
                 </button>
@@ -256,13 +280,13 @@ const SearchBar = () => `
 
 const AnimeCard = (anime, episodeInfo = null) => {
     const animeTitle = (anime.title).replace(/'/g, "\\'");
-    const episodeId = episodeInfo ? `'${episodeInfo.id}'` : 'null';
+    const episodeId = episodeInfo && episodeInfo.id ? `'${episodeInfo.id}'` : 'null';
     const onclickAction = `handleSelectAnime('${anime.id}', ${episodeId})`;
     
     let episodeBadge = '';
     if (episodeInfo && episodeInfo.number) {
         episodeBadge = `
-        <div class="absolute top-2 right-2 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">
+        <div class="absolute bottom-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
             EP ${episodeInfo.number}
         </div>`;
     }
@@ -315,11 +339,15 @@ const renderHome = () => {
     } else {
         const spotlightsContent = state.homeData.spotlights.length > 0 ? SpotlightBanner(state.homeData.spotlights) : '';
         
-        const recentContent = state.homeData.recent.length > 0 
-            ? state.homeData.recent.map(anime => AnimeCard(anime, { number: anime.episode_no, id: anime.episodeId })).join('') 
+        const recentContent = state.homeData.recent.length > 0
+            ? state.homeData.recent.map(anime => {
+                return AnimeCard(anime, { number: anime.latestEpisodeNumber, id: anime.latestEpisodeId });
+              }).join('')
             : '<p class="text-gray-400 col-span-full">No recent releases found.</p>';
         const trendingContent = state.homeData.trending.length > 0 
-            ? state.homeData.trending.map(anime => AnimeCard(anime)).join('') 
+            ? state.homeData.trending.map(anime => {
+                return AnimeCard(anime, { number: anime.latestEpisodeNumber, id: anime.latestEpisodeId });
+              }).join('')
             : '<p class="text-gray-400 col-span-full">No trending anime found.</p>';
 
         content = `
@@ -366,7 +394,7 @@ const renderDetailsPage = () => {
     if (state.selectedEpisodeId && (state.availableSubServers.length > 0 || state.availableDubServers.length > 0)) {
         const subOptions = state.availableSubServers.map(server => `<option value="${server}|sub">${server} (Sub)</option>`).join('');
         const dubOptions = state.availableDubServers.map(server => `<option value="${server}|dub">${server} (Dub)</option>`).join('');
-        serverDropdownHtml = `<select onchange="handleServerSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="" disabled selected>Select a server</option><optgroup label="Subbed">${subOptions}</optgroup><optgroup label="Dubbed">${dubOptions}</optgroup></select>`;
+        serverDropdownHtml = `<select id="server-select" onchange="handleServerSelection(this.value)" class="bg-gray-700 text-white p-3 rounded-lg w-full md:w-1/2 focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="" disabled selected>Select a server</option><optgroup label="Subbed">${subOptions}</optgroup><optgroup label="Dubbed">${dubOptions}</optgroup></select>`;
     }
 
     const content = `
@@ -424,6 +452,31 @@ const renderCategoryPage = () => {
 };
 
 // --- App Logic ---
+
+async function fetchLatestEpisodeForAnimeList(animeList) {
+    const promises = animeList.map(async (anime) => {
+        try {
+            const episodesRes = await fetch(`${API_BASE}/episodes/${anime.id}`);
+            if (!episodesRes.ok) return anime; // Return original if fetch fails
+            const episodesData = await episodesRes.json();
+            const episodes = episodesData.results?.episodes;
+            if (episodes && episodes.length > 0) {
+                const latestEpisode = episodes[episodes.length - 1];
+                return {
+                    ...anime,
+                    latestEpisodeNumber: latestEpisode.episode_no,
+                    latestEpisodeId: latestEpisode.id
+                };
+            }
+            return anime; // Return original if no episodes found
+        } catch (err) {
+            console.error(`Failed to fetch episodes for anime ID ${anime.id}:`, err);
+            return anime; // Return original on error
+        }
+    });
+    return Promise.all(promises);
+}
+
 async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
     try {
@@ -439,14 +492,29 @@ async function fetchHomeData() {
                 const detailsRes = await fetch(`${API_BASE}/info?id=${anime.id}`);
                 if (!detailsRes.ok) return anime;
                 const detailsData = await detailsRes.json();
-                return { ...anime, showType: detailsData.results.data.showType, genres: detailsData.results.data.animeInfo.Genres };
+                const animeInfo = detailsData.results.data.animeInfo;
+                const duration = animeInfo.Duration ? animeInfo.Duration.split(' ')[0] + 'm' : null;
+                const releaseDate = animeInfo.Aired || 'N/A';
+                return { 
+                    ...anime, 
+                    showType: detailsData.results.data.showType, 
+                    genres: animeInfo.Genres,
+                    duration: duration,
+                    releaseDate: releaseDate,
+                };
             } catch (err) {
                 console.error(`Failed to fetch details for anime ID ${anime.id}:`, err);
                 return anime;
             }
         });
-        const detailedSpotlights = await Promise.all(spotlightDetailsPromises);
-        setState({ homeData: { spotlights: detailedSpotlights, trending, recent }, isLoading: false });
+
+        const [detailedSpotlights, detailedRecent, detailedTrending] = await Promise.all([
+             Promise.all(spotlightDetailsPromises),
+             fetchLatestEpisodeForAnimeList(recent),
+             fetchLatestEpisodeForAnimeList(trending)
+        ]);
+
+        setState({ homeData: { spotlights: detailedSpotlights, trending: detailedTrending, recent: detailedRecent }, isLoading: false });
     } catch (err) {
         console.error(err);
         setState({ error: 'Could not load home anime data.', isLoading: false });
@@ -506,16 +574,17 @@ async function fetchDetailsForPlayer(animeId, targetEpisodeId = null) {
 
         const detailsData = await detailsRes.json();
         const episodesData = await episodesRes.json();
+        const episodes = episodesData.results.episodes;
         
-        if (!detailsData.results?.data?.id || !episodesData.results || !Array.isArray(episodesData.results.episodes)) {
+        if (!detailsData.results?.data?.id || !episodesData.results || !Array.isArray(episodes)) {
              throw new Error("Invalid or empty data from API.");
         }
         
-        const selectedEpId = targetEpisodeId || (episodesData.results.episodes.length > 0 ? episodesData.results.episodes[0].id : null);
+        const selectedEpId = targetEpisodeId || (episodes.length > 0 ? episodes[episodes.length - 1].id : null);
         
         setState({ 
             animeDetails: detailsData.results.data, 
-            animeEpisodes: episodesData.results.episodes, 
+            animeEpisodes: episodes, 
             selectedEpisodeId: selectedEpId 
         });
         
@@ -536,6 +605,11 @@ async function handleServerSelection(selectedValue) {
     const [serverName, type] = selectedValue.split('|');
     const episodeId = state.selectedEpisodeId;
     if (!serverName || !type || !episodeId) return;
+
+    const serverSelect = document.getElementById('server-select');
+    if (serverSelect) {
+        serverSelect.value = selectedValue;
+    }
 
     if (player) player.destroy();
     const playerContainer = document.getElementById('video-player');
@@ -644,7 +718,19 @@ async function fetchServersForEpisode(episodeId) {
         
         const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
         const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
+        
         setState({ availableSubServers: subServers, availableDubServers: dubServers, isLoading: false });
+
+        const preferredServer = 'HD-2';
+        // Use a short timeout to allow the DOM to update from setState before we manipulate it
+        setTimeout(() => {
+            if (subServers.includes(preferredServer)) {
+                handleServerSelection(`${preferredServer}|sub`);
+            } else if (dubServers.includes(preferredServer)) {
+                handleServerSelection(`${preferredServer}|dub`);
+            }
+        }, 0);
+
     } catch (err) {
         console.error(err);
         setState({ error: `Failed to fetch servers: ${err.message}`, isLoading: false });
