@@ -262,7 +262,6 @@ const renderPagination = () => {
     </div>`;
 };
 
-// --- MODIFICATION START: Updated renderHome with tabbed interface ---
 const renderHome = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
     let content = '';
@@ -280,7 +279,6 @@ const renderHome = () => {
     } else {
         const spotlightsContent = state.homeData.spotlights.length > 0 ? SpotlightBanner(state.homeData.spotlights) : '';
         
-        // Tab content
         const recentContent = state.homeData.recent.length > 0 
             ? state.homeData.recent.map(anime => AnimeCard(anime)).join('') 
             : '<p class="text-gray-400 col-span-full">No recent releases found.</p>';
@@ -309,8 +307,8 @@ const renderHome = () => {
         startSpotlightInterval();
     }
 };
-// --- MODIFICATION END ---
 
+// --- MODIFICATION START: Updated renderDetailsPage with new layout ---
 const renderDetailsPage = () => {
     document.getElementById('search-bar-container').innerHTML = '';
     if (state.isLoading || !state.animeDetails) {
@@ -340,26 +338,25 @@ const renderDetailsPage = () => {
     <div class="max-w-7xl mx-auto">
         <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>Back to Home</button>
         <div class="flex flex-col lg:flex-row gap-8">
-            <div class="lg:w-2/3">
+            <div class="lg:w-3/4">
                 <div class="bg-gray-800 rounded-lg p-4">
                     <div id="video-player-container" class="mb-4"><div id="video-player" class="w-full aspect-video bg-black rounded-lg overflow-hidden">${!state.selectedEpisodeId ? '<div class="flex items-center justify-center h-full text-gray-400">Please select an episode to begin.</div>' : ''}</div></div>
                     <div class="flex flex-col md:flex-row gap-4">${episodeDropdownHtml}${serverDropdownHtml}</div>
                 </div>
             </div>
-            <div class="lg:w-1/3">
-                <div class="bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
-                    <div class="flex flex-col gap-6">
-                        <div class="flex-shrink-0"><img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" /></div>
+            <div class="lg:w-1/4">
+                <div class="bg-gray-800 rounded-lg overflow-hidden shadow-lg p-4">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex-shrink-0">
+                            <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full max-w-[200px] mx-auto h-auto rounded-lg shadow-md" />
+                        </div>
                         <div class="flex-grow">
-                            <h1 class="text-2xl font-extrabold text-white mb-2">${details.title}</h1>
-                            <p class="text-gray-400 mb-4 text-sm">${details.japanese_title || ''}</p>
-                            <div class="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-300">
-                                <div><p class="font-semibold text-white">Released:</p><p>${details.animeInfo.Aired || 'N/A'}</p></div>
-                                <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
+                            <h1 class="text-xl font-extrabold text-white mb-2">${details.title}</h1>
+                            <div class="grid grid-cols-1 gap-2 text-sm text-gray-300">
                                 <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
+                                <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
                                 <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
                             </div>
-                            <p class="text-gray-300 text-sm"><span class="font-semibold text-white">Summary:</span> ${details.animeInfo.Overview || 'No summary available.'}</p>
                         </div>
                     </div>
                 </div>
@@ -368,6 +365,7 @@ const renderDetailsPage = () => {
     </div>`;
     mainContent.innerHTML = content;
 };
+// --- MODIFICATION END ---
 
 const renderCategoryPage = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
@@ -589,7 +587,6 @@ function handleGoHome() {
     history.pushState({}, '', '/');
 }
 
-// --- MODIFICATION: New function to switch home tabs ---
 function switchHomeTab(tab) {
     setState({ homeTab: tab });
 }
