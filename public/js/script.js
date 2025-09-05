@@ -6,6 +6,7 @@ let player = null;
 // --- State Management ---
 let state = {
     view: 'home', // 'home', 'details', 'category'
+    homeTab: 'recent', // 'recent' or 'trending'
     homeData: { trending: [], recent: [], spotlights: [] },
     searchResults: null,
     categoryResults: null,
@@ -71,7 +72,6 @@ const ErrorDisplay = (message, showBackButton = false) => {
     </div>`;
 };
 
-// --- MODIFICATION: Updated function to toggle summary with inline link ---
 function toggleSummary(event) {
     event.preventDefault();
     const summaryP = document.getElementById('summary-text');
@@ -110,12 +110,10 @@ const renderInfoModal = () => {
     const genres = details.animeInfo.Genres ? details.animeInfo.Genres.join(', ') : 'N/A';
     const summary = details.animeInfo.Overview || 'No summary available.';
     
-    // --- MODIFICATION: JS-based summary truncation for inline "See more" ---
     const summaryNeedsTruncation = summary.length > 550; 
     let summaryHtml = '';
     if (summaryNeedsTruncation) {
         const truncatedText = summary.substring(0, 550);
-        // Using data-* attribute to store full text
         summaryHtml = `
             <p id="summary-text" class="text-gray-300 text-justify" data-full-text="${summary.replace(/"/g, '&quot;')}">
                 <span class="font-semibold text-white">Summary:</span>
@@ -264,6 +262,7 @@ const renderPagination = () => {
     </div>`;
 };
 
+// --- MODIFICATION START: Updated renderHome with tabbed interface ---
 const renderHome = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
     let content = '';
@@ -280,17 +279,25 @@ const renderHome = () => {
         </section>`;
     } else {
         const spotlightsContent = state.homeData.spotlights.length > 0 ? SpotlightBanner(state.homeData.spotlights) : '';
-        const trendingContent = state.homeData.trending.length > 0 ? state.homeData.trending.map(anime => AnimeCard(anime)).join('') : '<p class="text-gray-400 col-span-full">No trending anime found.</p>';
-        const recentContent = state.homeData.recent.length > 0 ? state.homeData.recent.map(anime => AnimeCard(anime)).join('') : '<p class="text-gray-400 col-span-full">No recent releases found.</p>';
+        
+        // Tab content
+        const recentContent = state.homeData.recent.length > 0 
+            ? state.homeData.recent.map(anime => AnimeCard(anime)).join('') 
+            : '<p class="text-gray-400 col-span-full">No recent releases found.</p>';
+        const trendingContent = state.homeData.trending.length > 0 
+            ? state.homeData.trending.map(anime => AnimeCard(anime)).join('') 
+            : '<p class="text-gray-400 col-span-full">No trending anime found.</p>';
+
         content = `
         ${spotlightsContent}
-        <section class="mb-10">
-          <h2 class="text-2xl font-bold text-white mb-4">Top Airing</h2>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">${trendingContent}</div>
-        </section>
         <section>
-          <h2 class="text-2xl font-bold text-white mb-4">Recent Releases</h2>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">${recentContent}</div>
+            <div class="flex items-center gap-2 mb-4">
+                <button onclick="switchHomeTab('recent')" class="tab-btn font-semibold py-2 px-4 rounded-lg ${state.homeTab === 'recent' ? 'active' : ''}">Recent Releases</button>
+                <button onclick="switchHomeTab('trending')" class="tab-btn font-semibold py-2 px-4 rounded-lg ${state.homeTab === 'trending' ? 'active' : ''}">Top Airing</button>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                ${state.homeTab === 'recent' ? recentContent : trendingContent}
+            </div>
         </section>`;
     }
     mainContent.innerHTML = (state.error ? ErrorDisplay(state.error) : '') + content;
@@ -302,6 +309,7 @@ const renderHome = () => {
         startSpotlightInterval();
     }
 };
+// --- MODIFICATION END ---
 
 const renderDetailsPage = () => {
     document.getElementById('search-bar-container').innerHTML = '';
@@ -579,6 +587,11 @@ function handleGoHome() {
     setState({ view: 'home', searchResults: null, categoryResults: null, lastSearchQuery: '', videoSrc: null, selectedEpisodeId: null });
     fetchHomeData();
     history.pushState({}, '', '/');
+}
+
+// --- MODIFICATION: New function to switch home tabs ---
+function switchHomeTab(tab) {
+    setState({ homeTab: tab });
 }
 
 function toggleMenu(show) {
