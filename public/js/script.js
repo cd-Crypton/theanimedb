@@ -203,7 +203,7 @@ const renderHome = () => {
     }
 };
 
-// --- MODIFICATION START: Updated renderDetails function ---
+// --- MODIFICATION START: Updated renderDetails function for 2-column layout ---
 const renderDetails = () => {
     document.getElementById('search-bar-container').innerHTML = '';
     if (state.isLoading || !state.animeDetails) {
@@ -227,7 +227,7 @@ const renderDetails = () => {
                 ${episodeOptions}
             </select>`;
     } else {
-        episodeDropdownHtml = '<p class="text-gray-400">No episodes found.</p>';
+        episodeDropdownHtml = '<p class="text-gray-400 p-3">No episodes found.</p>';
     }
 
     // --- Create Server Dropdown ---
@@ -244,36 +244,46 @@ const renderDetails = () => {
     }
 
     const content = `
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-7xl mx-auto">
         <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
             Back to Home
         </button>
 
-        <div class="bg-gray-800 rounded-lg p-4 mb-8">
-            <div id="video-player-container" class="mb-4">
-                <div id="video-player" class="w-full aspect-video bg-black rounded-lg overflow-hidden">
-                    ${!state.selectedEpisodeId ? '<div class="flex items-center justify-center h-full text-gray-400">Please select an episode to begin.</div>' : ''}
+        <div class="flex flex-col lg:flex-row gap-8">
+            <div class="lg:w-2/3">
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <div id="video-player-container" class="mb-4">
+                        <div id="video-player" class="w-full aspect-video bg-black rounded-lg overflow-hidden">
+                            ${!state.selectedEpisodeId ? '<div class="flex items-center justify-center h-full text-gray-400">Please select an episode to begin.</div>' : ''}
+                        </div>
+                    </div>
+                    <div class="flex flex-col md:flex-row gap-4">
+                        ${episodeDropdownHtml}
+                        ${serverDropdownHtml}
+                    </div>
                 </div>
             </div>
-            <div class="flex flex-col md:flex-row gap-4">
-                ${episodeDropdownHtml}
-                ${serverDropdownHtml}
-            </div>
-        </div>
 
-        <div class="flex flex-col md:flex-row gap-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
-            <div class="md:flex-shrink-0"><img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full md:w-64 h-auto rounded-lg shadow-md" /></div>
-            <div class="flex-grow">
-                <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${details.title}</h1>
-                <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
-                <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
-                    <div><p class="font-semibold text-white">Released:</p><p>${details.animeInfo.Aired || 'N/A'}</p></div>
-                    <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
-                    <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
-                    <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
+            <div class="lg:w-1/3">
+                <div class="bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
+                    <div class="flex flex-col gap-6">
+                        <div class="flex-shrink-0">
+                            <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" />
+                        </div>
+                        <div class="flex-grow">
+                            <h1 class="text-2xl font-extrabold text-white mb-2">${details.title}</h1>
+                            <p class="text-gray-400 mb-4 text-sm">${details.japanese_title || ''}</p>
+                            <div class="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-300">
+                                <div><p class="font-semibold text-white">Released:</p><p>${details.animeInfo.Aired || 'N/A'}</p></div>
+                                <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
+                                <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
+                                <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
+                            </div>
+                            <p class="text-gray-300 text-sm"><span class="font-semibold text-white">Summary:</span> ${details.animeInfo.Overview || 'No summary available.'}</p>
+                        </div>
+                    </div>
                 </div>
-                <p class="text-gray-300 mb-4"><span class="font-semibold text-white">Summary:</span>${details.animeInfo.Overview || 'No summary available.'}</p>
             </div>
         </div>
     </div>`;
@@ -398,7 +408,6 @@ async function fetchAnimeDetails(animeId) {
             throw new Error("Invalid episode data from API.");
         }
         
-        // --- MODIFICATION: Auto-select first episode on load ---
         const firstEpisodeId = episodesData.results.episodes.length > 0 ? episodesData.results.episodes[0].id : null;
 
         setState({
@@ -408,7 +417,6 @@ async function fetchAnimeDetails(animeId) {
             isLoading: false
         });
         
-        // If an episode was selected, fetch its servers
         if (firstEpisodeId) {
              await fetchServersForEpisode(firstEpisodeId);
         }
@@ -419,7 +427,6 @@ async function fetchAnimeDetails(animeId) {
     }
 }
 
-// --- MODIFICATION START: Renamed and refactored from handleServerSelection ---
 async function handleServerSelection(selectedValue) {
     if (!selectedValue) return;
 
@@ -437,7 +444,6 @@ async function handleServerSelection(selectedValue) {
             player = null;
         }
 
-        // Show a loading state in the player
         const playerContainer = document.getElementById('video-player');
         if(playerContainer) playerContainer.innerHTML = Spinner();
 
@@ -538,18 +544,13 @@ async function handleServerSelection(selectedValue) {
         }
     }
 }
-// --- MODIFICATION END ---
 
-
-// --- MODIFICATION START: Extracted server fetching logic ---
 async function fetchServersForEpisode(episodeId) {
-    // Clear previous player instance if it exists
     if (player) {
         player.destroy();
         player = null;
     }
     
-    // Update state to show loading and clear old data
     setState({ 
         isLoading: true, 
         selectedEpisodeId: episodeId, 
@@ -567,7 +568,6 @@ async function fetchServersForEpisode(episodeId) {
         const subServers = serversData.results.filter(s => s.type === 'sub').map(s => s.serverName);
         const dubServers = serversData.results.filter(s => s.type === 'dub').map(s => s.serverName);
         
-        // Update state with new server lists, which triggers a re-render
         setState({ 
             availableSubServers: subServers, 
             availableDubServers: dubServers, 
@@ -578,15 +578,10 @@ async function fetchServersForEpisode(episodeId) {
         setState({ error: `Failed to fetch servers: ${err.message}`, isLoading: false });
     }
 }
-// --- MODIFICATION END ---
 
-
-// --- MODIFICATION START: New handler for episode dropdown ---
 async function handleEpisodeSelection(episodeId) {
     await fetchServersForEpisode(episodeId);
 }
-// --- MODIFICATION END ---
-
 
 // --- Event Handlers ---
 function handleSearchInput(query) {
@@ -624,7 +619,6 @@ function handlePageChange(dir) {
 
 function handleSelectAnime(animeId) {
     state.selectedAnimeId = animeId;
-    // Update the URL without reloading the page
     history.pushState({ animeId: animeId }, '', `/anime/${animeId}`);
     fetchAnimeDetails(animeId);
 }
