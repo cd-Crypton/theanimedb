@@ -49,56 +49,31 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   -webkit-line-clamp: 3;
 }
 
-/* --- Side Menu Opacity --- */
-#side-menu {
-  background-color: rgba(31, 41, 55, 0.8);
-  backdrop-filter: blur(8px);
+/* --- Modal Styles --- */
+.modal {
+  animation: fadeIn 0.3s ease-out;
 }
 
-/* --- Watch Page Layout --- */
-.watch-page-grid {
-  display: grid;
-  grid-template-columns: 1fr; /* Mobile-first: single column */
-  gap: 1.5rem;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* Tablet and larger: two columns */
-@media (min-width: 1024px) {
-  .watch-page-grid {
-    /* Episodes on left, Player + Details on right */
-    grid-template-columns: 300px 1fr; 
-  }
-  .details-column {
-     display: none; /* Hide details column on this layout */
-  }
+.modal-content {
+  max-height: 90vh;
 }
 
-/* Large desktop: three columns */
-@media (min-width: 1280px) {
-  .watch-page-grid {
-    /* Episodes, Player, Details */
-    grid-template-columns: 300px 1fr 320px;
-  }
-   .details-column {
-     display: block; /* Show details column again */
-  }
+.modal-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 9999px;
+  padding: 0.5rem;
+  color: white;
+  transition: background-color 0.2s;
 }
 
-.episode-list-column {
-  background-color: #111827;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-
-.details-column {
-  background-color: #111827;
-  border-radius: 0.5rem;
-  padding: 1rem;
-}
-
-.episode-button.active {
-    background-color: #3b82f6;
-    color: white;
+.modal-close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.8);
 }
