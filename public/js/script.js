@@ -1,7 +1,6 @@
 // --- App Logic ---
 const PROXY_URL = 'https://theanimedbproxy.vercel.app/';
 const mainContent = document.getElementById('main-content');
-const modalContainer = document.getElementById('modal-container');
 // The global player instance is now for ArtPlayer.js
 let player = null;
 
@@ -205,8 +204,9 @@ const renderHome = () => {
 };
 
 const renderDetails = () => {
+    document.getElementById('search-bar-container').innerHTML = '';
     if (state.isLoading || !state.animeDetails) {
-        modalContainer.innerHTML = Spinner();
+        mainContent.innerHTML = Spinner();
         return;
     }
     const details = state.animeDetails;
@@ -228,34 +228,30 @@ const renderDetails = () => {
         serverSelectionHtml = `<div class="mb-8" id="server-selection-container"><h3 class="text-xl font-bold text-white mb-2">Servers</h3>${subServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Subbed</h4><div class="flex flex-wrap gap-2">${subServerButtonsHtml}</div>` : ''}${dubServerButtonsHtml.length > 0 ? `<h4 class="text-lg font-semibold text-white mt-4 mb-2">Dubbed</h4><div class="flex flex-wrap gap-2">${dubServerButtonsHtml}</div>` : ''}</div>`;
     }
     const content = `
-    <div class="modal bg-gray-900 rounded-lg shadow-lg p-6 w-full max-w-4xl relative modal-content overflow-y-auto">
-      <button onclick="closeDetailsModal()" class="modal-close-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-      <div class="flex flex-col md:flex-row gap-8">
-        <div class="md:flex-shrink-0"><img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full md:w-64 h-auto rounded-lg shadow-md" /></div>
-        <div class="flex-grow">
-          <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${details.title}</h1>
-          <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
-          <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
-            <div><p class="font-semibold text-white">Released:</p><p>${details.animeInfo.Aired || 'N/A'}</p></div>
-            <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
-            <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
-            <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
-          </div>
-          <p class="text-gray-300 mb-4"><span class="font-semibold text-white">Summary:</span>${details.animeInfo.Overview || 'No summary available.'}</p>
+    <div class="max-w-4xl mx-auto">
+        <button onclick="handleGoHome()" class="text-blue-500 hover:text-blue-400 font-bold mb-4 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>Back to Home</button>
+        <div class="flex flex-col md:flex-row gap-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg p-6">
+            <div class="md:flex-shrink-0"><img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full md:w-64 h-auto rounded-lg shadow-md" /></div>
+            <div class="flex-grow">
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">${details.title}</h1>
+                <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
+                <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
+                    <div><p class="font-semibold text-white">Released:</p><p>${details.animeInfo.Aired || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
+                    <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
+                </div>
+                <p class="text-gray-300 mb-4"><span class="font-semibold text-white">Summary:</span>${details.animeInfo.Overview || 'No summary available.'}</p>
+            </div>
         </div>
-      </div>
-      <div class="mt-8">
-        ${videoPlayerHtml}
-        ${serverSelectionHtml}
-        <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
-        ${episodeListHtml}
-      </div>
+        <div class="mt-8">
+            ${videoPlayerHtml}
+            ${serverSelectionHtml}
+            <h2 class="text-2xl font-bold text-white mb-4">Episodes</h2>
+            ${episodeListHtml}
+        </div>
     </div>`;
-    modalContainer.innerHTML = content;
+    mainContent.innerHTML = content;
 };
 
 const renderCategoryPage = () => {
@@ -360,8 +356,9 @@ async function fetchSearchSuggestions(query) {
 }
 
 async function fetchAnimeDetails(animeId) {
-    setState({ isLoading: true, error: null, animeDetails: null, videoSrc: null, selectedEpisodeId: null });
+    setState({ isLoading: true, error: null, view: 'details', animeDetails: null, videoSrc: null, selectedEpisodeId: null });
     try {
+        // Use Promise.all to fetch details and episodes concurrently
         const [detailsRes, episodesRes] = await Promise.all([
             fetch(`${API_BASE}/info?id=${animeId}`),
             fetch(`${API_BASE}/episodes/${animeId}`)
@@ -421,6 +418,24 @@ async function handleServerSelection(event, episodeId, serverName, type) {
                     hls.attachMedia(video);
                 },
             },
+            controls: [
+                {
+                    position: 'right',
+                    html: '<svg viewBox="-5 -10 75 75" xmlns="http://www.w3.org/2000/svg" width="35" height="35"><path d="M11.9199 45H7.20508V26.5391L2.60645 28.3154V24.3975L11.4219 20.7949H11.9199V45ZM30.1013 35.0059C30.1013 38.3483 29.4926 40.9049 28.2751 42.6758C27.0687 44.4466 25.3422 45.332 23.0954 45.332C20.8708 45.332 19.1498 44.4743 17.9323 42.7588C16.726 41.0322 16.1006 38.5641 16.0564 35.3545V30.7891C16.0564 27.4577 16.6596 24.9121 17.8659 23.1523C19.0723 21.3815 20.8044 20.4961 23.0622 20.4961C25.32 20.4961 27.0521 21.3704 28.2585 23.1191C29.4649 24.8678 30.0792 27.3636 30.1013 30.6064V35.0059ZM25.3864 30.1084C25.3864 28.2048 25.1983 26.777 24.822 25.8252C24.4457 24.8734 23.8591 24.3975 23.0622 24.3975C21.5681 24.3975 20.7933 26.1406 20.738 29.627V35.6533C20.738 37.6012 20.9262 39.0511 21.3025 40.0029C21.6898 40.9548 22.2875 41.4307 23.0954 41.4307C23.8591 41.4307 24.4236 40.988 24.7888 40.1025C25.1651 39.2061 25.3643 37.8392 25.3864 36.002V30.1084Z" fill="white"></path><path d="M11.9894 5.45398V0L2 7.79529L11.9894 15.5914V10.3033H47.0886V40.1506H33.2442V45H52V5.45398H11.9894Z" fill="white"></path></svg>',
+                    tooltip: 'Backward 10s',
+                    click: function () {
+                        player.backward = 10;
+                    },
+                },
+                {
+                    position: 'right',
+                    html: '<svg viewBox="-5 -10 75 75" xmlns="http://www.w3.org/2000/svg" width="35" height="35"><path d="M29.9199 45H25.2051V26.5391L20.6064 28.3154V24.3975L29.4219 20.7949H29.9199V45ZM48.1013 35.0059C48.1013 38.3483 47.4926 40.9049 46.2751 42.6758C45.0687 44.4466 43.3422 45.332 41.0954 45.332C38.8708 45.332 37.1498 44.4743 35.9323 42.7588C34.726 41.0322 34.1006 38.5641 34.0564 35.3545V30.7891C34.0564 27.4577 34.6596 24.9121 35.8659 23.1523C37.0723 21.3815 38.8044 20.4961 41.0622 20.4961C43.32 20.4961 45.0521 21.3704 46.2585 23.1191C47.4649 24.8678 48.0792 27.3636 48.1013 30.6064V35.0059ZM43.3864 30.1084C43.3864 28.2048 43.1983 26.777 42.822 25.8252C42.4457 24.8734 41.8591 24.3975 41.0622 24.3975C39.5681 24.3975 38.7933 26.1406 38.738 29.627V35.6533C38.738 37.6012 38.9262 39.0511 39.3025 40.0029C39.6898 40.9548 40.2875 41.4307 41.0954 41.4307C41.8591 41.4307 42.4236 40.988 42.7888 40.1025C43.1651 39.2061 43.3643 37.8392 43.3864 36.002V30.1084Z" fill="white"></path><path d="M40.0106 5.45398V0L50 7.79529L40.0106 15.5914V10.3033H4.9114V40.1506H18.7558V45H2.01875e-06V5.45398H40.0106Z" fill="white"></path></svg>',
+                    tooltip: 'Forward 10s',
+                    click: function () {
+                        player.forward = 10;
+                    },
+                },
+            ]
         });
 
         if (subtitles.length > 0) {
@@ -523,11 +538,17 @@ function handlePageChange(dir) {
 }
 
 function handleSelectAnime(animeId) {
-    showDetailsModal(animeId);
+    state.selectedAnimeId = animeId;
+    // Update the URL without reloading the page
+    history.pushState({ animeId: animeId }, '', `/anime/${animeId}`);
+    fetchAnimeDetails(animeId);
 }
 
 function handleGoHome() {
-    closeDetailsModal();
+    if (player) {
+        player.destroy();
+        player = null;
+    }
     setState({
         view: 'home',
         searchResults: null,
@@ -542,6 +563,7 @@ function handleGoHome() {
         searchSuggestions: []
     });
     fetchHomeData();
+    history.pushState({}, '', '/');
 }
 
 // --- Menu Logic ---
@@ -562,6 +584,7 @@ function handleCategoryClick(endpoint, title) {
     state.currentCategoryTitle = title;
     fetchCategoryResults(endpoint, 1);
     toggleMenu(false);
+    history.pushState({ category: title, endpoint: endpoint }, '', `/category?type=${encodeURIComponent(title)}`);
 }
 
 function initializeMenu() {
@@ -604,24 +627,37 @@ function stopSpotlightInterval() {
     clearInterval(spotlightInterval);
 }
 
-// --- Modal Logic ---
-async function showDetailsModal(animeId) {
-    modalContainer.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-    await fetchAnimeDetails(animeId);
-    renderDetails();
-}
+// --- Initial Routing ---
+const handleInitialRoute = () => {
+    const path = window.location.pathname;
+    const searchParams = new URLSearchParams(window.location.search);
 
-function closeDetailsModal() {
-    if (player) {
-        player.destroy();
-        player = null;
+    if (path.startsWith('/anime/')) {
+        const animeId = path.replace('/anime/', '');
+        if (animeId) {
+            fetchAnimeDetails(animeId);
+        } else {
+            handleGoHome();
+        }
+    } else if (path === '/category') {
+        const categoryType = searchParams.get('type');
+        const categoryItem = MENU_ITEMS.find(item => item.title === categoryType);
+        if (categoryItem) {
+            handleCategoryClick(categoryItem.endpoint, categoryItem.title);
+        } else {
+            handleGoHome();
+        }
+    } else {
+        fetchHomeData();
     }
-    modalContainer.classList.add('hidden');
-    document.body.style.overflow = 'auto';
-    modalContainer.innerHTML = '';
-}
+};
+
+// Handle back/forward button clicks
+window.addEventListener('popstate', () => {
+    handleInitialRoute();
+});
 
 // --- Init ---
 initializeMenu();
-fetchHomeData();
+// Call the initial route handler on page load
+handleInitialRoute();
