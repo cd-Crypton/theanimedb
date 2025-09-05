@@ -407,6 +407,9 @@ async function handleServerSelection(event, episodeId, serverName, type) {
             url: proxyUrl,
             type: 'm3u8',
             autoplay: true,
+            pip: true,
+            setting: true,
+            fullscreen: true,
             customType: {
                 m3u8: function (video, url) {
                     const hls = new Hls();
