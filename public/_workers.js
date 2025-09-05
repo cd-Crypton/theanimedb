@@ -1,5 +1,5 @@
 // --- App Logic ---
-const VERCEL_API_BASE = 'https://theanimedb-api.vercel.app/';
+const VERCEL_API_BASE = 'hhttps://theanimedb-api.vercel.app/';
 
 // Helper function to create a response with CORS headers
 const createCorsResponse = (body, options) => {
@@ -127,13 +127,16 @@ export default {
             }
         }
 
-        // --- SPA Fallback ---
-        try {
-            return await env.ASSETS.fetch(request);
-        } catch (e) {
-            // The worker crashed while trying to find a static file,
-            // so explicitly serve the SPA entry point.
-            return env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+        // --- Static Asset & SPA Fallback ---
+        // Check if the path looks like a file with an extension.
+        const assetPathRegex = /\.[^/]+$/;
+        if (url.pathname !== '/' && assetPathRegex.test(url.pathname)) {
+            // It's likely a static asset. Let ASSETS handle it.
+            // This will correctly return a 404 if the asset doesn't exist.
+            return env.ASSETS.fetch(request);
         }
+
+        // It's not an asset, so it must be an SPA route. Serve the main app.
+        return env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
     },
 };
