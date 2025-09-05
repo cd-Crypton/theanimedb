@@ -1,5 +1,5 @@
 // --- App Logic ---
-const VERCEL_API_BASE = 'hhttps://theanimedb-api.vercel.app/';
+const TADB_API_BASE = 'hhttps://theanimedb-api.vercel.app/';
 
 // Helper function to create a response with CORS headers
 const createCorsResponse = (body, options) => {
@@ -106,7 +106,7 @@ export default {
 
         // --- Proxy API Calls (/api/*) ---
         if (url.pathname.startsWith('/api/')) {
-            const targetUrl = VERCEL_API_BASE + url.pathname + url.search;
+            const targetUrl = TADB_API_BASE + url.pathname + url.search;
             try {
                 const response = await fetch(targetUrl, {
                     headers: { 'User-Agent': 'TheAnimeDB (via Cloudflare Worker)' },
