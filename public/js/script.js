@@ -72,6 +72,29 @@ const ErrorDisplay = (message, showBackButton = false) => {
     </div>`;
 };
 
+// --- MODIFICATION: Added Skeleton Loader components ---
+const SkeletonCard = () => `
+<div class="bg-gray-800 rounded-lg overflow-hidden animate-pulse">
+  <div class="relative pb-[140%] bg-gray-700"></div>
+  <div class="p-3">
+    <div class="h-4 bg-gray-700 rounded w-3/4"></div>
+  </div>
+</div>`;
+
+const renderHomeSkeleton = () => `
+    <section class="relative h-[60vh] md:h-[70vh] rounded-lg overflow-hidden mb-10 bg-gray-800 animate-pulse"></section>
+    <section>
+        <div class="flex items-center gap-2 mb-4">
+            <div class="h-10 bg-gray-800 rounded-lg w-36 animate-pulse"></div>
+            <div class="h-10 bg-gray-800 rounded-lg w-32 animate-pulse"></div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            ${Array(12).fill('').map(SkeletonCard).join('')}
+        </div>
+    </section>
+`;
+
+
 function toggleSummary(event) {
     event.preventDefault();
     const summaryP = document.getElementById('summary-text');
@@ -82,12 +105,10 @@ function toggleSummary(event) {
     const isExpanded = toggleLink.textContent.trim() === 'See less...';
 
     if (isExpanded) {
-        // Collapse
         contentSpan.textContent = fullText.substring(0, 550);
         ellipsisSpan.style.display = 'inline';
         toggleLink.textContent = 'See more...';
     } else {
-        // Expand
         contentSpan.textContent = fullText;
         ellipsisSpan.style.display = 'none';
         toggleLink.textContent = ' See less...';
@@ -264,10 +285,14 @@ const renderPagination = () => {
 
 const renderHome = () => {
     document.getElementById('search-bar-container').innerHTML = SearchBar();
+
+    if (state.isLoading && state.homeData.recent.length === 0 && !state.searchResults) {
+        mainContent.innerHTML = renderHomeSkeleton();
+        return; 
+    }
+    
     let content = '';
-    if (state.isLoading) {
-        content = Spinner();
-    } else if (state.searchResults) {
+    if (state.searchResults) {
         content = `
         <section>
           <h2 class="text-2xl font-bold text-white mb-4">Search Results</h2>
@@ -456,7 +481,6 @@ async function fetchSearchSuggestions(query) {
     }
 }
 
-// --- MODIFICATION: Updated fetchDetailsForPlayer with robust error handling ---
 async function fetchDetailsForPlayer(animeId) {
     setState({ isLoading: true, view: 'details' });
     try {
@@ -591,7 +615,6 @@ function handlePageChange(dir) {
     }
 }
 
-// --- MODIFICATION: Updated handleGoHome to fully reset state ---
 function handleGoHome() {
     if (player) {
         player.destroy();
