@@ -12,6 +12,7 @@ let state = {
     categoryResults: null,
     currentCategoryTitle: null,
     currentCategoryEndpoint: null,
+    searchQuery: '',
     searchSuggestions: [],
     lastSearchQuery: '',
     currentPage: 1,
@@ -41,9 +42,9 @@ const MENU_ITEMS = [
     { title: 'ONA', endpoint: '/ona' },
 ];
 
-const API_BASE = 'hhttps://theanimedb-api.vercel.app/api';
+const API_BASE = 'https://theanimedb-api.vercel.app/api';
 
-const setState = (newState) => {
+const setState = (newState, options = {}) => {
     state = { ...state, ...newState };
     if (state.view === 'home') {
         renderHome();
@@ -51,6 +52,16 @@ const setState = (newState) => {
         renderDetailsPage();
     } else if (state.view === 'category') {
         renderCategoryPage();
+    }
+
+    if (options.focusSearch) {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.focus();
+            // Place cursor at the end of the text
+            const len = searchInput.value.length;
+            searchInput.setSelectionRange(len, len);
+        }
     }
 };
 
@@ -266,6 +277,7 @@ const SearchBar = () => `
     <input type="search" id="search-input" placeholder="Search for an anime..."
       class="flex-grow w-full p-2 text-sm text-white bg-gray-800 border-2 border-gray-700 rounded-full focus:outline-none focus:border-blue-500 transition-colors"
       oninput="handleSearchInput(this.value)"
+      value="${state.searchQuery}"
       ${state.isLoading ? 'disabled' : ''} />
     <button type="submit" ${state.isLoading ? 'disabled' : ''}
       class="flex-shrink-0 bg-blue-500 text-white p-1.5 rounded-full hover:bg-blue-600 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
@@ -570,7 +582,7 @@ async function fetchCategoryResults(endpoint, page = 1) {
 
 async function fetchSearchResults(page = 1) {
     if (!state.lastSearchQuery) return;
-    setState({ isLoading: true, error: null, currentPage: page, searchResults: null });
+    setState({ isLoading: true, error: null, currentPage: page, searchResults: null, searchSuggestions: [] });
     try {
         const res = await fetch(`${API_BASE}/search?keyword=${state.lastSearchQuery}&page=${page}`);
         if (!res.ok) throw new Error('Failed to fetch search results.');
@@ -587,7 +599,7 @@ async function fetchSearchSuggestions(query) {
     try {
         const res = await fetch(`${API_BASE}/search/suggest?keyword=${query}`);
         const data = await res.json();
-        if (data.results) setState({ searchSuggestions: data.results });
+        if (data.results) setState({ searchSuggestions: data.results }, { focusSearch: true });
     } catch (err) {
         console.error("Failed to fetch search suggestions:", err);
     }
@@ -776,12 +788,16 @@ async function handleEpisodeSelection(episodeId) {
 
 // --- Event Handlers ---
 function handleSearchInput(query) {
-    if (query.trim() === '') setState({ searchSuggestions: [] });
-    else fetchSearchSuggestions(query);
+    if (query.trim() === '') {
+        setState({ searchQuery: query, searchSuggestions: [] }, { focusSearch: true });
+    } else {
+        setState({ searchQuery: query }, { focusSearch: true });
+        fetchSearchSuggestions(query);
+    }
 }
 
 async function handleSelectAnime(animeId, targetEpisodeId = null) {
-    setState({ searchSuggestions: [], targetEpisodeId: targetEpisodeId });
+    setState({ searchQuery: '', searchSuggestions: [], targetEpisodeId: targetEpisodeId });
     renderInfoModal(); 
     try {
         const detailsRes = await fetch(`${API_BASE}/info?id=${animeId}`);
@@ -833,6 +849,8 @@ function handleGoHome() {
         homeTab: 'recent',
         searchResults: null,
         categoryResults: null,
+        searchQuery: '',
+        searchSuggestions: [],
         currentCategoryTitle: null,
         currentCategoryEndpoint: null,
         lastSearchQuery: '',
