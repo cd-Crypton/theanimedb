@@ -41,7 +41,7 @@ const MENU_ITEMS = [
     { title: 'ONA', endpoint: '/ona' },
 ];
 
-const API_BASE = 'https://theanimedb-api.vercel.app/api';
+const API_BASE = 'hhttps://theanimedb-api.vercel.app/api';
 
 const setState = (newState) => {
     state = { ...state, ...newState };
@@ -168,7 +168,16 @@ const renderInfoModal = () => {
                 <h1 class="text-3xl font-extrabold text-white mb-2">${details.title}</h1>
                 <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
                 <div class="grid grid-cols-2 gap-4 mb-4 text-gray-300">
-                    <div><p class="font-semibold text-white">Released:</p><p>${details.animeInfo.Aired || 'N/A'}</p></div>
+                    <div>
+                        <p class="font-semibold text-white">Airing:</p>
+                        <p>${
+                            details.animeInfo.Aired
+                                ? details.animeInfo.Aired
+                                    .replace(/-/g, ' ')
+                                    .trim()
+                                : 'N/A'
+                        }</p>
+                    </div>
                     <div><p class="font-semibold text-white">Status:</p><p>${details.animeInfo.Status || 'N/A'}</p></div>
                     <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
                     <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
@@ -479,10 +488,12 @@ async function fetchLatestEpisodeForAnimeList(animeList) {
 
 async function fetchHomeData() {
     setState({ isLoading: true, error: null, view: 'home' });
+
     try {
         const response = await fetch(`${API_BASE}/`);
         if (!response.ok) throw new Error(`Failed to fetch home page data: ${response.statusText}`);
         const data = await response.json();
+
         const spotlights = data.results.spotlights || [];
         const trending = data.results.topAiring || [];
         const recent = data.results.latestEpisode || [];
@@ -491,13 +502,26 @@ async function fetchHomeData() {
             try {
                 const detailsRes = await fetch(`${API_BASE}/info?id=${anime.id}`);
                 if (!detailsRes.ok) return anime;
+
                 const detailsData = await detailsRes.json();
                 const animeInfo = detailsData.results.data.animeInfo;
-                const duration = animeInfo.Duration ? animeInfo.Duration.split(' ')[0] + 'm' : null;
-                const releaseDate = animeInfo.Aired || 'N/A';
-                return { 
-                    ...anime, 
-                    showType: detailsData.results.data.showType, 
+
+                // ✅ Clean Aired date format
+                const releaseDate = animeInfo.Aired
+                    ? animeInfo.Aired
+                        .replace(/-/g, ' ')
+                        .replace(/\s+to\s+\?$/, '')
+                        .trim()
+                    : 'N/A';
+
+                // ✅ Keep duration without extra "m"
+                const duration = animeInfo.Duration
+                    ? animeInfo.Duration.split(' ')[0]
+                    : null;
+
+                return {
+                    ...anime,
+                    showType: detailsData.results.data.showType,
                     genres: animeInfo.Genres,
                     duration: duration,
                     releaseDate: releaseDate,
@@ -509,17 +533,26 @@ async function fetchHomeData() {
         });
 
         const [detailedSpotlights, detailedRecent, detailedTrending] = await Promise.all([
-             Promise.all(spotlightDetailsPromises),
-             fetchLatestEpisodeForAnimeList(recent),
-             fetchLatestEpisodeForAnimeList(trending)
+            Promise.all(spotlightDetailsPromises),
+            fetchLatestEpisodeForAnimeList(recent),
+            fetchLatestEpisodeForAnimeList(trending)
         ]);
 
-        setState({ homeData: { spotlights: detailedSpotlights, trending: detailedTrending, recent: detailedRecent }, isLoading: false });
+        setState({
+            homeData: {
+                spotlights: detailedSpotlights,
+                trending: detailedTrending,
+                recent: detailedRecent,
+            },
+            isLoading: false
+        });
+
     } catch (err) {
         console.error(err);
         setState({ error: 'Could not load home anime data.', isLoading: false });
     }
 }
+
 
 async function fetchCategoryResults(endpoint, page = 1) {
     setState({ isLoading: true, error: null, view: 'category', currentPage: page, categoryResults: null });
@@ -900,4 +933,3 @@ window.addEventListener('popstate', handleInitialRoute);
 // --- Init ---
 initializeMenu();
 handleInitialRoute();
-
