@@ -71,7 +71,20 @@ const ErrorDisplay = (message, showBackButton = false) => {
     </div>`;
 };
 
-// --- MODIFICATION START: Modal Rendering Logic ---
+// --- MODIFICATION START: New function to toggle summary visibility ---
+function toggleSummary(button) {
+    const summary = document.getElementById('summary-text');
+    if (summary.classList.contains('line-clamp-9')) {
+        summary.classList.remove('line-clamp-9');
+        button.textContent = 'See less...';
+    } else {
+        summary.classList.add('line-clamp-9');
+        button.textContent = 'See more...';
+    }
+}
+// --- MODIFICATION END ---
+
+
 const renderInfoModal = () => {
     const modalOverlay = document.getElementById('info-modal-overlay');
     const modalContent = document.getElementById('info-modal-content');
@@ -85,17 +98,32 @@ const renderInfoModal = () => {
 
     const details = state.animeDetailsForModal;
     const genres = details.animeInfo.Genres ? details.animeInfo.Genres.join(', ') : 'N/A';
+    const summary = details.animeInfo.Overview || 'No summary available.';
+    
+    // --- MODIFICATION: Logic for summary truncation ---
+    const summaryNeedsTruncation = summary.length > 550; 
+    let summaryHtml = `<p id="summary-text" class="text-gray-300 mb-6 ${summaryNeedsTruncation ? 'line-clamp-9' : ''}"><span class="font-semibold text-white">Summary:</span> ${summary}</p>`;
+    if (summaryNeedsTruncation) {
+        summaryHtml += `<button onclick="toggleSummary(this)" class="text-blue-400 hover:text-blue-300 font-semibold">See more...</button>`;
+    }
+
 
     modalContent.innerHTML = `
-        <button onclick="hideInfoModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+        <button onclick="hideInfoModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </button>
         <div class="flex flex-col md:flex-row gap-8">
             <div class="md:w-1/3 flex-shrink-0">
-                <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" />
+                <div class="p-1.5 bg-gray-900 rounded-lg">
+                    <img src="${details.poster || 'https://placehold.co/300x420/1f2937/9ca3af?text=Image+Not+Found'}" alt="${details.title}" class="w-full h-auto rounded-lg shadow-md" />
+                </div>
+                <button onclick="handleWatchNowClick('${details.id}')" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg w-full mt-4 hover:bg-blue-600 transition-colors">
+                    Watch Now
+                </button>
             </div>
+            
             <div class="md:w-2/3">
                 <h1 class="text-3xl font-extrabold text-white mb-2">${details.title}</h1>
                 <p class="text-gray-400 mb-4">${details.japanese_title || ''}</p>
@@ -105,10 +133,7 @@ const renderInfoModal = () => {
                     <div><p class="font-semibold text-white">Type:</p><p>${details.showType || 'N/A'}</p></div>
                     <div><p class="font-semibold text-white">Genres:</p><p>${genres}</p></div>
                 </div>
-                <p class="text-gray-300 mb-6"><span class="font-semibold text-white">Summary:</span> ${details.animeInfo.Overview || 'No summary available.'}</p>
-                <button onclick="handleWatchNowClick('${details.id}')" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg w-full hover:bg-blue-600 transition-colors">
-                    Watch Now
-                </button>
+                ${summaryHtml}
             </div>
         </div>
     `;
@@ -124,7 +149,6 @@ const hideInfoModal = () => {
     document.getElementById('info-modal-content').innerHTML = '';
     setState({ animeDetailsForModal: null });
 };
-// --- MODIFICATION END ---
 
 const SpotlightBanner = (spotlights) => {
     if (!spotlights || spotlights.length === 0) return '';
@@ -192,7 +216,6 @@ const SearchBar = () => `
 
 const AnimeCard = (anime) => {
     const animeTitle = (anime.title).replace(/'/g, "\\'");
-    // --- MODIFICATION: This now calls handleSelectAnime to show the modal ---
     const onclickAction = `handleSelectAnime('${anime.id}')`; 
     return `
     <div onclick="${onclickAction}" class="bg-gray-800 rounded-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-transform duration-300">
@@ -408,7 +431,6 @@ async function fetchSearchSuggestions(query) {
     }
 }
 
-// --- MODIFICATION: This now fetches data for the player page ---
 async function fetchDetailsForPlayer(animeId) {
     setState({ isLoading: true, view: 'details' });
     try {
@@ -451,13 +473,11 @@ async function handleServerSelection(selectedValue) {
 
         const sourceUrl = watchData.results.streamingLink.link.file;
         const proxyUrl = `${PROXY_URL}m3u8-proxy?url=${encodeURIComponent(sourceUrl)}`;
-        const subtitles = watchData.results.streamingLink.tracks || [];
-
+        
         player = new Artplayer({ container: '#video-player', url: proxyUrl, type: 'm3u8', autoplay: true, pip: true, setting: true, fullscreen: true,
             customType: { m3u8: (video, url) => { const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video); } },
         });
 
-        // Subtitle logic can be added here if needed
     } catch (err) {
         console.error(err);
         if(playerContainer) playerContainer.innerHTML = `<div class="flex items-center justify-center h-full text-red-400 p-4">${err.message}</div>`;
@@ -491,16 +511,15 @@ function handleSearchInput(query) {
     else fetchSearchSuggestions(query);
 }
 
-// --- MODIFICATION: handleSelectAnime now shows the modal ---
 async function handleSelectAnime(animeId) {
-    setState({ searchSuggestions: [] }); // Clear suggestions
-    renderInfoModal(); // Show modal with spinner
+    setState({ searchSuggestions: [] });
+    renderInfoModal(); 
     try {
         const detailsRes = await fetch(`${API_BASE}/info?id=${animeId}`);
         if (!detailsRes.ok) throw new Error("Failed to fetch anime info.");
         const detailsData = await detailsRes.json();
         setState({ animeDetailsForModal: detailsData.results.data });
-        renderInfoModal(); // Re-render with data
+        renderInfoModal();
     } catch (err) {
         console.error(err);
         hideInfoModal();
@@ -508,7 +527,6 @@ async function handleSelectAnime(animeId) {
     }
 }
 
-// --- MODIFICATION: New handler for "Watch Now" button ---
 function handleWatchNowClick(animeId) {
     hideInfoModal();
     history.pushState({ animeId: animeId }, '', `/anime/${animeId}`);
@@ -542,7 +560,6 @@ function handleGoHome() {
     history.pushState({}, '', '/');
 }
 
-// --- Menu & Routing Logic (largely unchanged) ---
 function toggleMenu(show) {
     const menu = document.getElementById('side-menu');
     const overlay = document.getElementById('side-menu-overlay');
@@ -588,7 +605,10 @@ function nextSpotlight() {
     const newIndex = (state.currentSpotlightIndex + 1) % state.homeData.spotlights.length;
     showSpotlight(newIndex);
 }
-
+function prevSpotlight() {
+    const newIndex = (state.currentSpotlightIndex - 1 + state.homeData.spotlights.length) % state.homeData.spotlights.length;
+    showSpotlight(newIndex);
+}
 function startSpotlightInterval() {
     clearInterval(spotlightInterval);
     if (state.homeData.spotlights.length > 1) {

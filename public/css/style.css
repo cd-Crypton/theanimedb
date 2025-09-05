@@ -48,6 +48,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
+.line-clamp-9 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 9;
+}
+
 
 /* Modal Animation */
 #info-modal-content {
