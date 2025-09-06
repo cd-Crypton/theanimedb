@@ -486,13 +486,75 @@ export function renderCategoryPage(mainContent) {
 
 export function initializeMenu() {
     const menuNavLinks = document.getElementById('menu-nav-links');
-    menuNavLinks.innerHTML = MENU_ITEMS.map(item =>
-        `<a href="#" onclick="${item.endpoint === 'home' ? 'handleGoHome()' : `handleCategoryClick('${item.endpoint}', '${item.title}')`}" class="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-base font-medium">${item.title}</a>`
+    const existingLinks = MENU_ITEMS.map(item =>
+        `<a href="#" onclick="${item.endpoint === 'home' ? 'handleGoHome()' : `handleCategoryClick('${item.endpoint}', '${item.title}')`}" class="block text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-base font-medium">${item.title}</a>`
     ).join('');
+
+    const genres = [
+        'adventure', 'cars', 'comedy', 'dementia', 'demons', 'drama', 'ecchi', 'fantasy',
+        'game', 'harem', 'historical', 'horror', 'isekai', 'josei', 'kids', 'magic',
+        'martial-arts', 'mecha', 'military', 'music', 'mystery', 'parody', 'police',
+        'psychological', 'romance', 'samurai', 'school', 'sci-fi', 'seinen', 'shoujo',
+        'shoujo-ai', 'shounen', 'shounen-ai', 'slice-of-life', 'space', 'sports',
+        'super-power', 'supernatural', 'thriller', 'vampire'
+    ];
+    
+    const genreLinks = genres.map(genre => {
+        const title = genre
+            .split('-')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+    
+        return `<a href="/genre/${genre}" onclick="event.preventDefault(); handleCategoryClick('/genre/${genre}', '${title}')" class="block text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-1 rounded-md text-sm font-medium">${title}</a>`;
+    }).join('');
+
+    const genreCollapsible = `
+    <div>
+        <button onclick="toggleMenuCollapsible(this)" class="w-full text-left text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-base font-medium flex justify-between items-center">
+            <span>Genre</span>
+            <svg class="h-5 w-5 transform transition-transform" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+        </button>
+        <div class="hidden pl-4 pt-2">
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 max-h-60 overflow-y-auto">
+                ${genreLinks}
+            </div>
+        </div>
+    </div>`;
+
+    const azListItems = ['0-9', ...Array.from({length: 26}, (_, i) => String.fromCharCode('a'.charCodeAt(0) + i))];
+
+    const azLinks = azListItems.map(item => {
+        const title = item.toUpperCase();
+        return `<a href="/az-list/${item}" onclick="event.preventDefault(); handleCategoryClick('/az-list/${item}', 'A-Z: ${title}')" class="block text-center text-gray-300 hover:bg-gray-700 hover:text-white px-2 py-1 rounded-md text-sm font-medium">${title}</a>`;
+    }).join('');
+
+    const azCollapsible = `
+    <div>
+        <button onclick="toggleMenuCollapsible(this)" class="w-full text-left text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-base font-medium flex justify-between items-center">
+            <span>A-Z List</span>
+            <svg class="h-5 w-5 transform transition-transform" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+        </button>
+        <div class="hidden pl-4 pt-2">
+            <div class="grid grid-cols-4 gap-1">
+                ${azLinks}
+            </div>
+        </div>
+    </div>`;
+
+    menuNavLinks.innerHTML = existingLinks + genreCollapsible + azCollapsible;
 
     document.getElementById('menu-toggle-btn').addEventListener('click', () => window.toggleMenu(true));
     document.getElementById('close-menu-btn').addEventListener('click', () => window.toggleMenu(false));
     document.getElementById('side-menu-overlay').addEventListener('click', () => window.toggleMenu(false));
+
+    if (!window.toggleMenuCollapsible) {
+        window.toggleMenuCollapsible = (button) => {
+            const content = button.nextElementSibling;
+            const icon = button.querySelector('svg');
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        };
+    }
 }
 
 let spotlightInterval;
