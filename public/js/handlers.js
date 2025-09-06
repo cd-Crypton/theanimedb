@@ -27,6 +27,14 @@ export function createHandlers(state, setState, api, playerManager) {
     }
 
     async function handleServerSelection(selectedValue) {
+        // Defer execution if the player container isn't in the DOM yet.
+        // This handles a race condition when a video is loaded programmatically.
+        const playerContainer = document.getElementById('video-player');
+        if (!playerContainer) {
+            setTimeout(() => handleServerSelection(selectedValue), 50);
+            return;
+        }
+
         if (!selectedValue) return;
         const [displayName, type, source, serverName] = selectedValue.split('|');
         const episodeId = state.selectedEpisodeId;
@@ -36,8 +44,7 @@ export function createHandlers(state, setState, api, playerManager) {
         if (serverSelect) serverSelect.value = selectedValue;
 
         playerManager.destroy();
-        const playerContainer = document.getElementById('video-player');
-        if (playerContainer) playerContainer.innerHTML = `<div class="flex justify-center items-center h-full w-full py-16"><div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div></div>`;
+        playerContainer.innerHTML = `<div class="flex justify-center items-center h-full w-full py-16"><div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div></div>`;
 
         try {
             const streamData = await api.fetchStreamData(source, episodeId, serverName, type);
@@ -48,7 +55,7 @@ export function createHandlers(state, setState, api, playerManager) {
             const subtitles = streamData.streamingLink.tracks || [];
 
             const newPlayer = new Artplayer({
-                container: '#video-player',
+                container: playerContainer,
                 url: proxyUrl,
                 type: 'm3u8',
                 autoplay: true,
@@ -94,7 +101,7 @@ export function createHandlers(state, setState, api, playerManager) {
             }
         } catch (err) {
             console.error(err);
-            if (playerContainer) playerContainer.innerHTML = `<div class="flex items-center justify-center h-full text-red-400 p-4">${err.message}</div>`;
+            playerContainer.innerHTML = `<div class="flex items-center justify-center h-full text-red-400 p-4">${err.message}</div>`;
         }
     }
 
